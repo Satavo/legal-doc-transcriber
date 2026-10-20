@@ -114,7 +114,8 @@
   .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   /* Телефон и компьютер: свои элементы управления */
   .touch-only { display: none !important; }
-  @media (hover: none) and (pointer: coarse) {
+  /* Телефонный режим: сенсорный экран или просто узкое окно (некоторые телефоны не сообщают о сенсоре) */
+  @media (hover: none) and (pointer: coarse), (max-width: 700px) {
     .touch-only { display: revert !important; }
     .pick-row.touch-only { display: grid !important; }
     .mbar.touch-only { display: flex !important; }
@@ -156,9 +157,17 @@
   }
   .mbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgba(0,0,0,.12); }
   .mbar { animation: slideUp .3s ease-out; }
+  .more-menu { position: fixed; right: 12px; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: rise .18s ease-out; }
+  .more-menu[hidden] { display: none; }
+  .more-menu .act { justify-content: flex-start; min-height: 46px; }
   .mbar button { min-height: 48px; min-width: 48px; border-radius: 14px; font: 600 16px/1 system-ui, sans-serif; padding: 0 14px; flex: none; white-space: nowrap; }
   .mbar button.grow { flex: 1; min-width: 0; }
   .mbar button.grow .lbl { overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 420px) {
+    .mbar { gap: 6px; padding-left: 10px; padding-right: 10px; }
+    .mbar button { padding: 0 10px; }
+    .mbar #mNext .ic { display: none; }   /* на узком экране место важнее иконки */
+  }
   @media (max-width: 899px) {
     main { padding: 16px 12px 96px; }
     h1 { font-size: 22px; }
@@ -249,7 +258,7 @@
       <button class="act solid c-green" id="emailBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Отправить на email</button>
     </div>
     <p class="hint touch-only"><span class="w-unk">Жёлтым</span> — не уверен, <span class="w-fix">пунктиром</span> — исправлено, <span class="w-guess">оранжевым</span> — обрезано краем. Нажмите на слово, чтобы выбрать вариант; «Далее» внизу ведёт по всем таким словам. Чтобы исправить текст вручную — «✎ Править текст».</p>
-    <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Наведите или нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Текст можно править прямо в поле.</p>
+    <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Текст можно править прямо в поле.</p>
   </section>
 </main>
 
@@ -257,8 +266,16 @@
 <nav class="mbar touch-only" id="mbar" hidden aria-label="Действия">
   <button type="button" id="mPrev" class="act c-slate" aria-label="Предыдущее слово на проверку"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
   <button type="button" id="mNext" class="act c-amber grow"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/></svg><span class="lbl">Далее</span></button>
+  <button type="button" id="mMore" class="act c-sky" aria-label="Ещё: копировать, скачать" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
   <button type="button" id="mSend" class="act solid c-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/></svg>Отправить</button>
 </nav>
+
+<!-- Меню «⋯» нижней панели -->
+<div class="more-menu" id="moreMenu" role="menu" hidden>
+  <button type="button" class="act c-sky" data-act="copy" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать текст</button>
+  <button type="button" class="act c-word" data-act="downloadDocx" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
+  <button type="button" class="act c-slate" data-act="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
+</div>
 
 <div id="suggest" hidden role="menu"></div>
 

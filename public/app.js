@@ -31,7 +31,8 @@ document.addEventListener("pointerdown", (e) => {
 });
 
 // Телефон: камера и галерея. После снимка кнопка предлагает снять следующую страницу
-const isTouch = matchMedia("(hover: none) and (pointer: coarse)").matches;
+// Телефонный режим — как в CSS: сенсорный экран или узкое окно
+const isTouch = matchMedia("(hover: none) and (pointer: coarse), (max-width: 700px)").matches;
 $("cameraBtn").addEventListener("click", () => $("camera").click());
 $("galleryBtn").addEventListener("click", () => picker.click());
 $("camera").addEventListener("change", () => { addFiles($("camera").files); $("camera").value = ""; });
@@ -168,6 +169,23 @@ $("editToggle").addEventListener("click", () => setEditing(output.contentEditabl
 $("mPrev").addEventListener("click", () => goIssue(-1));
 $("mNext").addEventListener("click", () => goIssue(1));
 $("mSend").addEventListener("click", () => $("emailBtn").click());
+
+// Меню «⋯»: копировать и скачать, не листая до конца текста
+const moreMenu = $("moreMenu");
+function toggleMore(open = moreMenu.hidden) {
+  moreMenu.hidden = !open;
+  $("mMore").setAttribute("aria-expanded", String(open));
+  if (open) hideSuggest();
+}
+$("mMore").addEventListener("click", (e) => { e.stopPropagation(); toggleMore(); });
+moreMenu.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  toggleMore(false);
+  $(b.dataset.act).click();
+});
+document.addEventListener("click", (e) => { if (!moreMenu.hidden && !moreMenu.contains(e.target)) toggleMore(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !moreMenu.hidden) toggleMore(false); });
 
 function setMsg(text, isErr) { msg.textContent = text; msg.className = isErr ? "err" : ""; }
 
@@ -475,7 +493,6 @@ function showSuggest(span, pinned = false) {
   suggest.style.top = window.scrollY + r.bottom + 6 + "px";
 }
 function hideSuggest() { suggest.hidden = true; suggestFor = null; suggestPinned = false; }
-function scheduleHide() { if (suggestPinned) return; clearTimeout(hideTimer); hideTimer = setTimeout(hideSuggest, 300); }
 
 // Выбранное слово заменяет размеченное, пометка снимается; при обходе по списку — сразу к следующему
 function resolveWord(span, value) {
@@ -489,18 +506,12 @@ function resolveWord(span, value) {
   if (wasCurrent && n) goIssue(1);
 }
 
-output.addEventListener("mouseover", (e) => {
-  const span = e.target.closest(".w-unk, .w-fix, .w-guess");
-  if (span && output.contains(span) && !(suggestPinned && suggestFor !== span)) showSuggest(span);
-});
-output.addEventListener("mouseout", (e) => { if (e.target.closest(".w-unk, .w-fix, .w-guess")) scheduleHide(); });
+// Варианты слова открываются только по нажатию (клик или тап), а не при наведении
 output.addEventListener("click", (e) => {
   highlightAt(e);
   const span = e.target.closest(".w-unk, .w-fix, .w-guess");
   if (span) showSuggest(span, true); else hideSuggest();
 });
-suggest.addEventListener("mouseenter", () => clearTimeout(hideTimer));
-suggest.addEventListener("mouseleave", scheduleHide);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !suggest.hidden) hideSuggest(); });
 document.addEventListener("click", (e) => {
   if (!suggest.contains(e.target) && !e.target.closest("#output, .review-bar, #mbar")) hideSuggest();
