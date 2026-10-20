@@ -111,7 +111,8 @@ function render() {
     list.append(li);
   });
   startBtn.disabled = busy || items.length === 0;
-  $("cameraBtn").querySelector(".lbl").textContent = items.length ? "Сфотографировать ещё страницу" : "Сфотографировать страницу";
+  const camLabel = items.length ? "Сфотографировать ещё страницу" : "Сфотографировать страницу";
+  $("cameraBtn").title = camLabel; $("cameraBtn").setAttribute("aria-label", camLabel);
 }
 
 function btn(label, disabled, onClick, title = "") {

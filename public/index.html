@@ -183,7 +183,7 @@
   /* Телефонный режим: сенсорный экран или просто узкое окно (некоторые телефоны не сообщают о сенсоре) */
   @media (hover: none) and (pointer: coarse), (max-width: 700px) {
     .touch-only { display: revert !important; }
-    .pick-row.touch-only { display: grid !important; }
+    .pick-row.touch-only { display: grid !important; grid-template-columns: 1fr auto; }
     .mbar.touch-only { display: flex !important; }
     .mbar[hidden] { display: none !important; }
     .mouse-only { display: none !important; }
@@ -198,6 +198,8 @@
     .start-row #start { order: 1; } .start-row #msg { order: 2; }
   }
   .pick-row { gap: 10px; }
+  .pick-row .cam-btn { width: auto; aspect-ratio: 1; padding: 0; align-self: stretch; }   /* камера — квадратная иконка справа от галереи */
+  .pick-row .cam-btn .ic { width: 26px; height: 26px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
   /* Цветные кнопки действий с иконками */
   .act.c-blue { --c: #3b6cf6; } .act.c-violet { --c: #8b5cf6; } .act.c-red { --c: #e5484d; } .act.c-sky { --c: #0ea5e9; }
@@ -288,8 +290,8 @@
   <section class="card">
     <!-- На телефоне: камера и галерея крупными кнопками -->
     <div class="pick-row touch-only">
-      <button class="act solid big c-blue" id="cameraBtn" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="lbl">Сфотографировать страницу</span></button>
       <button class="act big c-violet" id="galleryBtn" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span class="lbl">Выбрать из галереи</span></button>
+      <button class="act solid big c-blue cam-btn" id="cameraBtn" type="button" aria-label="Сфотографировать страницу" title="Сфотографировать страницу"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
     </div>
     <div id="drop" class="mouse-only" tabindex="0" role="button">
       <strong>Перетащите фото сюда или нажмите, чтобы выбрать</strong>
