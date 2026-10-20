@@ -367,13 +367,24 @@ function syncPageFromScroll() {
     syncFrame = 0;
     if (Date.now() < syncPaused || review.classList.contains("no-photo")) return;
     const o = output.getBoundingClientRect(), pane = $("photoPane").getBoundingClientRect();
-    // Точка чтения: верх видимой части текста. На телефоне фото стоит над текстом и закрывает его верх —
-    // тогда читаем сразу под фото; на компьютере фото слева и ничего не закрывает
+    // Видимая часть текста. На телефоне фото стоит над текстом и закрывает его верх —
+    // тогда считаем от низа фото; на компьютере фото слева и ничего не закрывает
     const stacked = Math.abs(pane.left - o.left) < 2;
-    const y = Math.max(o.top, 0, stacked ? pane.bottom : 0) + 24;
-    // Первая строка, которая видна ниже точки чтения
-    const ln = [...output.querySelectorAll(".ln")].find((l) => l.getBoundingClientRect().bottom > y);
-    if (ln && +ln.dataset.page !== shownPage) { clearHighlight(); showPage(+ln.dataset.page); }
+    const top = Math.max(o.top, 0, stacked ? pane.bottom : 0), bottom = Math.min(o.bottom, innerHeight);
+    if (bottom <= top) return;
+    // Фото той страницы, которая занимает большую часть видимого текста: край соседней страницы,
+    // выглянувший сверху или снизу, фото не переключает
+    const share = new Map();
+    for (const l of output.querySelectorAll(".ln")) {
+      const r = l.getBoundingClientRect();
+      if (r.bottom <= top) continue;
+      if (r.top >= bottom) break;
+      const p = +l.dataset.page;
+      share.set(p, (share.get(p) || 0) + Math.min(r.bottom, bottom) - Math.max(r.top, top));
+    }
+    let best = shownPage, bestH = share.get(shownPage) || 0;
+    for (const [p, h] of share) if (h > bestH + 1) { best = p; bestH = h; }
+    if (best >= 0 && best !== shownPage) { clearHighlight(); showPage(best); }
   });
 }
 output.addEventListener("scroll", syncPageFromScroll, { passive: true });
