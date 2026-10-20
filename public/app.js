@@ -270,8 +270,8 @@ function placeCaretAtLastTap() {
   if (target) sel.collapse(target, at); else sel.collapse(lastTap.line, 0);
   // Курсор — в видимую часть, ниже закреплённого фото и выше клавиатуры
   const r = sel.getRangeAt(0).getBoundingClientRect(), box = r.height ? r : lastTap.line.getBoundingClientRect();
-  const view = window.visualViewport?.height || innerHeight;
-  if (box.top < view * 0.35 || box.bottom > view * 0.6) window.scrollBy({ top: box.top - view * 0.45 });
+  const view = window.visualViewport?.height || innerHeight, y = box.top - Math.max(0, window.visualViewport?.offsetTop || 0);
+  if (y < view * 0.35 || y + box.height > view * 0.6) window.scrollBy({ top: y - view * 0.45 });
 }
 const toggleEditing = () => setEditing(output.contentEditable !== "true");
 // На компьютере кнопки нет: текст правится сразу, щелчком в нужное место (варианты слова по щелчку тоже открываются)
@@ -614,17 +614,21 @@ document.addEventListener("selectionchange", () => {
 });
 const editingOnTouch = () => isTouch && output.contentEditable === "true";
 
-// Клавиатура на телефоне: высота видимой части экрана — в CSS (--vvh), класс kb-open, пока клавиатура открыта
+// Клавиатура на телефоне: высота видимой части экрана — в CSS (--vvh), её сдвиг от верха страницы (--vvtop,
+// на iPhone страница под клавиатурой не сжимается, а видимая часть «едет» по ней) и класс kb-open, пока клавиатура открыта.
+// С открытой клавиатурой нижняя панель прячется: на iPhone она иначе «плавает» посреди экрана
 if (window.visualViewport && isTouch) {
-  let fullH = visualViewport.height;
+  let fullH = visualViewport.height, revealTimer = 0;
   const onViewport = () => {
     const h = visualViewport.height;
     if (h > fullH) fullH = h;
     document.documentElement.style.setProperty("--vvh", h + "px");
+    document.documentElement.style.setProperty("--vvtop", Math.max(0, visualViewport.offsetTop) + "px");
     const wasOpen = document.documentElement.classList.contains("kb-open");
     const open = h < fullH * 0.8 && output.contentEditable === "true";
     document.documentElement.classList.toggle("kb-open", open);
-    if (open && !wasOpen) requestAnimationFrame(revealCaret);   // клавиатура только что открылась
+    // Клавиатура только что открылась: ждём, пока она доедет (и браузер сам прокрутит), потом поправляем один раз
+    if (open && !wasOpen) { clearTimeout(revealTimer); revealTimer = setTimeout(revealCaret, 400); }
   };
   // Строка с курсором — сразу под закреплённым фото (один раз, без «качелей»)
   const revealCaret = () => {
@@ -632,13 +636,18 @@ if (window.visualViewport && isTouch) {
     if (!sel.rangeCount || !output.contains(sel.anchorNode)) return;
     let r = sel.getRangeAt(0).getBoundingClientRect();
     if (!r.height) r = (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement).getBoundingClientRect();
+    // Координаты — от верха видимой части (на iPhone она бывает сдвинута относительно страницы)
+    const y = r.top - Math.max(0, visualViewport.offsetTop), yb = y + r.height;
     const top = $("photoPane").offsetHeight + 24, bottom = visualViewport.height - 24;
-    if (r.top < top || r.bottom > bottom) window.scrollBy({ top: r.top - top });
+    if (y < top || yb > bottom) window.scrollBy({ top: y - top });
     // Фото стало меньше — заново ставим на нём строку с курсором
     lastSelLine = null;
     document.dispatchEvent(new Event("selectionchange"));
   };
   visualViewport.addEventListener("resize", onViewport);
+  visualViewport.addEventListener("scroll", () => document.documentElement.style.setProperty("--vvtop", Math.max(0, visualViewport.offsetTop) + "px"));
+  // Клавиатуру закрыли, а размер не пришёл (бывает на iPhone) — проверяем ещё раз
+  output.addEventListener("focusout", () => setTimeout(onViewport, 350));
   addEventListener("orientationchange", () => { fullH = 0; setTimeout(onViewport, 300); });
   onViewport();
 }

@@ -135,7 +135,9 @@
     .photo-pane { height: 34vh; height: 34dvh; min-height: 220px; position: sticky; top: 0; z-index: 2; }
     /* Открыта клавиатура: фото компактнее (доля видимой части экрана), а курсор браузер показывает под фото, не за ним */
     html.kb-open { scroll-padding-top: calc(var(--vvh, 100dvh) * .3 + 16px); }
-    html.kb-open .photo-pane { height: calc(var(--vvh, 100dvh) * .3); min-height: 110px; }
+    html.kb-open .photo-pane { height: calc(var(--vvh, 100dvh) * .3); min-height: 110px; top: var(--vvtop, 0px); }
+    html.kb-open .mbar, html.kb-open .more-menu { display: none !important; }
+    html.kb-open main { padding-bottom: 16px; }
     #output { height: auto; min-height: 320px; max-height: none; }
   }
   #output:focus { border-color: var(--accent); }
