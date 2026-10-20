@@ -41,6 +41,11 @@
   #files .status { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #files .btns { display: flex; gap: 6px; flex: none; }
   #files .status:empty { display: none; }
+  /* Перетаскивание страниц мышью */
+  #files li[draggable="true"] { cursor: grab; }
+  #files li.dragging { opacity: .45; }
+  #files li.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+  #files li.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
   #files .status.done { color: var(--ok); } #files .status.err { color: var(--danger); }
   .icon-btn { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; flex: none; }
   .icon-btn:disabled { opacity: .35; cursor: default; }
@@ -53,9 +58,26 @@
   #output .ln { border-radius: 4px; padding: 0 4px; margin: 0 -4px; }
   /* Тап по тексту: без серой вспышки, без увеличения двойным тапом и выделения слова долгим нажатием */
   #output { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-  #output[contenteditable="false"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  /* Режим правки заметен по рамке поля */
+  #output.editing { border-color: #8b5cf6; box-shadow: 0 0 0 3px color-mix(in srgb, #8b5cf6 22%, transparent); }
+  .act.on { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 72%, #000)); }
+  /* Граница страниц — заметная плашка «Страница N» во всю ширину поля (в тексте остаётся «===== Страница N =====») */
+  #output .ln.page-head { font-size: 0; line-height: 0; margin: 18px -16px 12px; padding: 0; border-radius: 0; }
+  #output .ln.page-head:first-child { margin-top: -14px; }
+  #output .ln.page-head::before { content: attr(data-label); display: block; padding: 11px 16px; font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, var(--bg)); border-top: 3px solid var(--accent); border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+  #output .ln.page-head.active::before { background: color-mix(in srgb, var(--accent) 20%, var(--bg)); }
+  /* Переключатель «Фото» вместо галочки */
+  .switch { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .switch .track { position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--border); transition: background-color .2s ease; flex: none; }
+  .switch .knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s ease; }
+  .switch input:checked + .track { background: #16a34a; }
+  .switch input:checked + .track .knob { transform: translateX(18px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch .ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+  .switch input:checked ~ .ic { color: #16a34a; }
   #output .ln.active { background: color-mix(in srgb, var(--accent) 9%, transparent); }
-  #output .ln.page-head { color: var(--muted); font: 600 13px/2.2 system-ui, sans-serif; letter-spacing: .02em; }
   .w-current { outline: 2px solid var(--accent); outline-offset: 1px; }
   /* Сверка: фото слева, текст справа */
   .review-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
@@ -125,6 +147,14 @@
     .mbar[hidden] { display: none !important; }
     .mouse-only { display: none !important; }
     .hl { transition: none; }   /* подсветка на фото встаёт сразу, без «переезда» */
+    /* В режиме чтения долгое нажатие не выделяет текст — нажатия только для вариантов слова */
+    #output[contenteditable="false"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    /* Большая кнопка «Расшифровать» на всю ширину, «Очистить» рядом */
+    .start-row { display: grid !important; grid-template-columns: 1fr auto; gap: 10px; }
+    .start-row #start { min-height: 56px; font-size: 18px; border-radius: 14px; }
+    .start-row #start .ic { width: 22px; height: 22px; }
+    .start-row #clear { min-height: 56px; border-radius: 14px; }
+    .start-row #msg { grid-column: 1 / -1; }
   }
   .pick-row { gap: 10px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
@@ -225,9 +255,9 @@
     <input id="picker" type="file" accept="image/*" multiple hidden>
     <input id="camera" type="file" accept="image/*" capture="environment" hidden>
     <ul id="files"></ul>
-    <div class="row">
+    <div class="row start-row">
       <button class="act solid c-blue" id="start" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg>Расшифровать</button>
-      <button class="act c-red" id="clear" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Очистить</button>
+      <button class="act solid c-red" id="clear" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Очистить</button>
       <span id="msg"></span>
     </div>
     <p class="hint">Страницы обрабатываются по порядку сверху вниз — порядок можно поменять стрелками.</p>
@@ -238,8 +268,12 @@
       <button class="secondary small mouse-only" id="prevIssue" title="Предыдущее слово на проверку (Alt+↑)" disabled>←</button>
       <button class="secondary small mouse-only" id="nextIssue" title="Следующее слово на проверку (Alt+↓)" disabled>Следующее слово на проверку →</button>
       <span id="issueInfo"></span>
-      <button class="secondary small touch-only" id="editToggle" type="button" aria-pressed="false">✎ Править текст</button>
-      <label class="toggle"><input type="checkbox" id="showPhoto" checked> Фото</label>
+      <button class="act c-violet small mouse-only" id="editBtn" type="button" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><span class="lbl">Править текст</span></button>
+      <label class="switch" title="Показывать фото рядом с текстом">
+        <input type="checkbox" id="showPhoto" role="switch" checked>
+        <span class="track" aria-hidden="true"><span class="knob"></span></span>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>Фото
+      </label>
     </div>
     <div class="review" id="review">
       <div class="photo-pane" id="photoPane">
@@ -259,22 +293,22 @@
           <p class="photo-empty" id="photoEmpty">После расшифровки здесь будет фото страницы. Наведите на строку или слово в тексте — оно подсветится на фото.</p>
         </div>
       </div>
-      <div id="output" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" data-placeholder="Здесь появится расшифровка… Текст можно править прямо здесь."></div>
+      <div id="output" contenteditable="false" spellcheck="false" role="textbox" aria-multiline="true" data-placeholder="Здесь появится расшифровка…"></div>
     </div>
-    <div class="row">
+    <div class="row actions-row mouse-only">
       <button class="act c-sky" id="copy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать</button>
       <button class="act c-word" id="downloadDocx"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
       <button class="act c-slate" id="download"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
       <button class="act solid c-green" id="emailBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Отправить на email</button>
     </div>
-    <p class="hint touch-only"><span class="w-unk">Жёлтым</span> — не уверен, <span class="w-fix">пунктиром</span> — исправлено, <span class="w-guess">оранжевым</span> — обрезано краем. Нажмите на слово, чтобы выбрать вариант; «Далее» внизу ведёт по всем таким словам. Чтобы исправить текст вручную — «✎ Править текст».</p>
-    <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Текст можно править прямо в поле.</p>
+    <p class="hint touch-only"><span class="w-unk">Жёлтым</span> — не уверен, <span class="w-fix">пунктиром</span> — исправлено, <span class="w-guess">оранжевым</span> — обрезано краем. Нажмите на слово, чтобы выбрать вариант; лупа внизу ведёт по всем таким словам. Править текст вручную — карандашом.</p>
+    <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Править текст вручную — кнопкой «Править текст».</p>
   </section>
 </main>
 
 <!-- Нижняя панель на телефоне: проверка слов и отправка всегда под рукой -->
 <nav class="mbar touch-only" id="mbar" hidden aria-label="Действия">
-  <button type="button" id="mPrev" class="act c-slate" aria-label="Предыдущее слово на проверку"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+  <button type="button" id="mEdit" class="act c-violet" aria-label="Править текст" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></button>
   <button type="button" id="mNext" class="act c-amber grow"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/></svg><span class="lbl">Далее</span></button>
   <button type="button" id="mMore" class="act c-sky" aria-label="Ещё: копировать, скачать" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
   <button type="button" id="mSend" class="act solid c-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/></svg>Отправить</button>
@@ -282,6 +316,7 @@
 
 <!-- Меню «⋯» нижней панели -->
 <div class="more-menu" id="moreMenu" role="menu" hidden>
+  <button type="button" class="act c-violet" data-act="edit" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><span class="lbl">Править текст</span></button>
   <button type="button" class="act c-sky" data-act="copy" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать текст</button>
   <button type="button" class="act c-word" data-act="downloadDocx" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
   <button type="button" class="act c-slate" data-act="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>

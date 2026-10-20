@@ -52,6 +52,7 @@ function addFiles(fileList) {
   render();
 }
 
+let dragFrom = -1;   // какую страницу сейчас перетаскивают мышью
 function render() {
   list.innerHTML = "";
   items.forEach((it, i) => {
@@ -69,6 +70,38 @@ function render() {
     if (items.length > 1) btns.append(btn("↑", i === 0, () => move(i, -1), "Выше"), btn("↓", i === items.length - 1, () => move(i, 1), "Ниже"));
     btns.append(btn("✕", false, () => remove(i), "Убрать фото"));
     li.append(thumb, info, btns);
+    // На компьютере порядок страниц можно менять перетаскиванием
+    if (!isTouch && items.length > 1 && !busy) {
+      li.draggable = true;
+      li.title = "Перетащите, чтобы поменять порядок";
+      thumb.draggable = false;
+      li.addEventListener("dragstart", (e) => {
+        dragFrom = i;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", String(i));
+        requestAnimationFrame(() => li.classList.add("dragging"));
+      });
+      li.addEventListener("dragend", () => { dragFrom = -1; render(); });
+      li.addEventListener("dragover", (e) => {
+        if (dragFrom < 0) return;
+        e.preventDefault();
+        const r = li.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
+        li.classList.toggle("drop-before", !after);
+        li.classList.toggle("drop-after", after);
+      });
+      li.addEventListener("dragleave", () => li.classList.remove("drop-before", "drop-after"));
+      li.addEventListener("drop", (e) => {
+        if (dragFrom < 0) return;
+        e.preventDefault();
+        const after = li.classList.contains("drop-after");
+        let to = i + (after ? 1 : 0);
+        const [moved] = items.splice(dragFrom, 1);
+        if (dragFrom < to) to--;
+        items.splice(to, 0, moved);
+        dragFrom = -1;
+        render();
+      });
+    }
     list.append(li);
   });
   startBtn.disabled = busy || items.length === 0;
@@ -156,18 +189,23 @@ startBtn.addEventListener("click", async () => {
 });
 
 // На телефоне текст сначала только для чтения: нажатие на слово открывает варианты, а не клавиатуру
+// Текст сначала только для чтения: нажатие на слово открывает варианты, а не клавиатуру.
+// Править вручную — карандашом (на компьютере кнопка над текстом, на телефоне — в нижней панели и в «⋯»)
 function setEditing(on) {
   output.contentEditable = on ? "true" : "false";
-  $("editToggle").setAttribute("aria-pressed", String(on));
-  $("editToggle").textContent = on ? "✓ Готово" : "✎ Править текст";
-  if (on) output.focus();
+  output.classList.toggle("editing", on);
+  for (const b of [$("editBtn"), $("mEdit")]) { b.setAttribute("aria-pressed", String(on)); b.classList.toggle("on", on); }
+  $("editBtn").querySelector(".lbl").textContent = on ? "Готово" : "Править текст";
+  moreMenu.querySelector('[data-act="edit"] .lbl').textContent = on ? "Закончить правку" : "Править текст";
+  setMsg(on ? "Режим правки: меняйте текст прямо в поле" : "");
+  if (on) { hideSuggest(); output.focus(); }
 }
-if (isTouch) setEditing(false);
-$("editToggle").addEventListener("click", () => setEditing(output.contentEditable !== "true"));
+const toggleEditing = () => setEditing(output.contentEditable !== "true");
+$("editBtn").addEventListener("click", toggleEditing);
+$("mEdit").addEventListener("click", toggleEditing);
 
-// Нижняя панель на телефоне
-$("mPrev").addEventListener("click", () => goIssue(-1));
-$("mNext").addEventListener("click", () => goIssue(1));
+// Нижняя панель на телефоне: лупа просто переводит к следующему слову на проверку, варианты — по нажатию на слово
+$("mNext").addEventListener("click", () => goIssue(1, false));
 $("mSend").addEventListener("click", () => $("emailBtn").click());
 
 // Меню «⋯»: копировать и скачать, не листая до конца текста
@@ -182,7 +220,7 @@ moreMenu.addEventListener("click", (e) => {
   const b = e.target.closest("[data-act]");
   if (!b) return;
   toggleMore(false);
-  $(b.dataset.act).click();
+  if (b.dataset.act === "edit") toggleEditing(); else $(b.dataset.act).click();
 });
 document.addEventListener("click", (e) => { if (!moreMenu.hidden && !moreMenu.contains(e.target)) toggleMore(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !moreMenu.hidden) toggleMore(false); });
@@ -196,6 +234,7 @@ function appendResult(str, page, isHead = false) {
   for (let line of str.split("\n")) {
     const div = document.createElement("div");
     div.className = "ln" + (isHead ? " page-head" : "");
+    if (isHead) div.dataset.label = line.replace(/=+/g, "").trim();
     div.dataset.page = page;
     const box = line.match(BOX_RE);
     if (box) { div.dataset.box = box[1]; line = line.slice(box[0].length); }
@@ -420,7 +459,6 @@ function updateIssues() {
   $("prevIssue").disabled = $("nextIssue").disabled = !all.length;
   const pos = issueSpan && all.includes(issueSpan) ? all.indexOf(issueSpan) + 1 : 0;
   $("issueInfo").textContent = all.length ? (pos ? `${pos} из ${all.length}` : `на проверку: ${all.length}`) : output.textContent.trim() ? "Все слова проверены" : "";
-  $("mPrev").disabled = !all.length;
   $("mNext").disabled = !all.length;
   const label = all.length ? (pos ? `${pos} из ${all.length}` : `Слова: ${all.length}`) : "Готово ✓";
   const lbl = $("mNext").querySelector(".lbl");
@@ -433,7 +471,8 @@ function updateIssues() {
   $("mNext").classList.toggle("done", !all.length);
 }
 
-function goIssue(dir) {
+// open — сразу показать варианты (кнопка на компьютере); лупа на телефоне только переводит к слову
+function goIssue(dir, open = true) {
   const all = issues();
   if (!all.length) return updateIssues();
   let i = issueSpan && all.includes(issueSpan) ? all.indexOf(issueSpan) + dir : dir > 0 ? Math.max(0, issueIndex) : all.length - 1;
@@ -449,7 +488,7 @@ function goIssue(dir) {
   if (output.scrollHeight > output.clientHeight + 2) output.scrollTop += r.top - output.getBoundingClientRect().top - output.clientHeight / 3;
   else window.scrollBy({ top: r.top - window.innerHeight * 0.42 });   // сразу под фото, выше шторки с вариантами
   highlight(issueSpan.closest(".ln"), spanRange(issueSpan));
-  setTimeout(() => showSuggest(issueSpan, true), 60);
+  if (open) setTimeout(() => showSuggest(issueSpan, true), 60); else hideSuggest();
   updateIssues();
 }
 $("nextIssue").addEventListener("click", () => goIssue(1));
