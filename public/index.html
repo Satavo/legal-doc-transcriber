@@ -197,13 +197,13 @@
     .hl { transition: none; }   /* подсветка на фото встаёт сразу, без «переезда» */
     /* В режиме чтения долгое нажатие не выделяет текст — нажатия только для вариантов слова */
     #output[contenteditable="false"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-    /* Большая кнопка «Расшифровать» на всю ширину, «Очистить» рядом */
-    .start-row { display: grid !important; grid-template-columns: 1fr auto; gap: 10px; }
+    /* Корзина слева, большая «Расшифровать» на остальную ширину */
+    .start-row { display: grid !important; grid-template-columns: auto 1fr; gap: 10px; }
     .start-row #start { min-height: 56px; font-size: 18px; border-radius: 14px; }
     .start-row #start .ic { width: 22px; height: 22px; }
-    .start-row #clear { min-height: 56px; min-width: 56px; border-radius: 14px; }
+    .start-row #clear { min-height: 56px; width: 56px; min-width: 56px; aspect-ratio: auto; border-radius: 14px; }
     .start-row #msg { grid-column: 1 / -1; }
-    .start-row #start, .start-row #clear, .start-row #msg { order: 0; }
+    .start-row #clear { order: 0; } .start-row #start { order: 1; } .start-row #msg { order: 2; }
   }
   .pick-row { gap: 10px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
