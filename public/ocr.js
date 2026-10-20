@@ -6,6 +6,9 @@
 // "guess" (слово обрезано краем, достроенная часть в квадратных скобках, варианты — полные слова)
 // или "name" (фамилия или отчество — прочитано уверенно, но стоит сверить с фото).
 
+// Версия словарей: меняется при каждом обновлении words/forms/med/ctx, чтобы браузер не взял старые из кеша
+const DATA_VERSION = "med1";
+
 const DET_MAX_SIDE = 2240;     // макс. сторона изображения для детектора (кратно 32)
 const DET_THRESH = 0.3;        // порог бинаризации карты вероятностей
 const BOX_THRESH = 0.5;        // мин. средняя вероятность внутри области
@@ -472,14 +475,22 @@ function fixDigits(text) {
 
 // плюс ~1,2 млн редких словоформ (danakt/russian-words) — только для проверки, что слово существует.
 // forms.txt хранится сжато: первый символ строки — сколько букв взять из предыдущего слова (код − 48).
+// med.txt — медицинские словоформы по частоте в медицинских текстах (собраны .tools/build-med.cjs).
 
 let wordsPromiseCache = null;
 export function loadWords() {
   if (!wordsPromiseCache) {
     const get = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); });
-    wordsPromiseCache = Promise.all([get("models/words.txt"), get("models/forms.txt")])
-      .then(([freq, forms]) => {
-        const list = freq.split("\n").filter(Boolean).map(norm);   // по убыванию частоты
+    wordsPromiseCache = Promise.all([get(`models/words.txt?v=${DATA_VERSION}`), get(`models/forms.txt?v=${DATA_VERSION}`), get(`models/med.txt?v=${DATA_VERSION}`).catch(() => "")])
+      .then(([freq, forms, med]) => {
+        const rankOf = new Map(freq.split("\n").filter(Boolean).map((w, i) => [norm(w), i]));   // по убыванию частоты
+        // Медицинские слова (med.txt, по частоте в медицинских текстах) встают в общий список как частые:
+        // в разговорной речи «анамнез» редкость, а в медицинском документе — обычное слово
+        med.split("\n").filter(Boolean).forEach((w, i) => {
+          const r = 2000 + i * 3;
+          if (!(rankOf.get(w) <= r)) rankOf.set(w, r);
+        });
+        const list = [...rankOf.keys()].sort((a, b) => rankOf.get(a) - rankOf.get(b));
         const set = new Set(list);
         let prev = "";
         for (const line of forms.split("\n")) {
@@ -853,11 +864,18 @@ function docStem(w, vocab) {
 // Варианты слова, где сомнительные буквы заменены на второй вариант модели
 function ctcVariants(w, meta) {
   if (!meta || meta.word.length !== w.length) return [];
-  const weak = meta.probs.map((p, i) => [p, i]).filter(([p, i]) => p < 0.9 && /\p{L}/u.test(meta.alts[i] || "")).sort((a, b) => a[0] - b[0]).slice(0, 3).map(([, i]) => i);
+  // В русском слове второй выбор модели — только русская буква: латинский двойник («k») превращаем в русский,
+  // латиницу без двойника («h») не предлагаем
+  const cyrWord = /[А-Яа-яЁё]/.test(w);
+  const altOf = (i) => {
+    const a = meta.alts[i] || "";
+    return cyrWord ? (/[А-Яа-яЁё]/.test(a) ? a : LAT2CYR[a] || (a === "k" ? "к" : "")) : a;
+  };
+  const weak = meta.probs.map((p, i) => [p, i]).filter(([p, i]) => p < 0.9 && /\p{L}/u.test(altOf(i)) && altOf(i).toLowerCase() !== w[i].toLowerCase()).sort((a, b) => a[0] - b[0]).slice(0, 3).map(([, i]) => i);
   const out = [];
   for (let mask = 1; mask < 1 << weak.length; mask++) {
     const chars = [...w];
-    weak.forEach((pos, bit) => { if (mask & (1 << bit)) chars[pos] = matchCaseChar(chars[pos], meta.alts[pos]); });
+    weak.forEach((pos, bit) => { if (mask & (1 << bit)) chars[pos] = matchCaseChar(chars[pos], altOf(pos)); });
     out.push(chars.join(""));
   }
   return out;
@@ -971,7 +989,7 @@ const ending = (w) => (FUNC_WORDS.has(w) || w.length <= 3 ? "=" + w : w.slice(-3
 let ctxPromise = null;
 export function loadContext() {
   if (!ctxPromise) {
-    ctxPromise = fetch("models/ctx.txt")
+    ctxPromise = fetch(`models/ctx.txt?v=${DATA_VERSION}`)
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
       .then((t) => {
         const w = new Map(), e = new Map(), leftTot = new Map(), rightTot = new Map();

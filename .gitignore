@@ -10,3 +10,5 @@ public/_test
 !.tools/build-ctx.cjs
 !.tools/fetch-codes.cjs
 !.tools/bench.js
+!.tools/fetch-med.cjs
+!.tools/build-med.cjs
