@@ -52,6 +52,7 @@ function addFiles(fileList) {
   render();
 }
 
+const TRASH_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
 let dragFrom = -1;   // какую страницу сейчас перетаскивают мышью
 function render() {
   list.innerHTML = "";
@@ -68,7 +69,10 @@ function render() {
     const btns = Object.assign(document.createElement("div"), { className: "btns" });
     // Стрелки порядка нужны, только когда страниц больше одной
     if (items.length > 1) btns.append(btn("↑", i === 0, () => move(i, -1), "Выше"), btn("↓", i === items.length - 1, () => move(i, 1), "Ниже"));
-    btns.append(btn("✕", false, () => remove(i), "Убрать фото"));
+    const del = btn("", false, () => remove(i), "Убрать фото");
+    del.classList.add("del");
+    del.innerHTML = TRASH_ICON;
+    btns.append(del);
     li.append(thumb, info, btns);
     if (it.working) {
       li.classList.add("busy");
@@ -153,7 +157,21 @@ function move(i, d) { [items[i], items[i + d]] = [items[i + d], items[i]]; rende
 // Фото, по которым уже есть расшифровка, не освобождаем — они нужны для сверки
 const inUse = (url) => pages.some((p) => p.url === url);
 function remove(i) { if (!inUse(items[i].url)) URL.revokeObjectURL(items[i].url); items.splice(i, 1); render(); }
-clearBtn.addEventListener("click", () => { items.forEach((it) => inUse(it.url) || URL.revokeObjectURL(it.url)); items = []; render(); });
+// «Очистить» убирает и фото, и расшифровку в окне редактирования
+clearBtn.addEventListener("click", () => {
+  items.forEach((it) => URL.revokeObjectURL(it.url));
+  pages.forEach((p) => URL.revokeObjectURL(p.url));
+  items = []; pages = [];
+  hideSuggest(); clearHighlight(); toggleDocxMenu(false);
+  if (isTouch) setEditing(false);
+  output.textContent = "";
+  issueSpan = null; issueIndex = -1;
+  shownPage = -1; renderPageTabs();
+  $("photoWrap").hidden = true; $("photoEmpty").hidden = false; $("photoImg").removeAttribute("src"); delete $("photoImg").dataset.url;
+  $("resultCard").hidden = true; $("mbar").hidden = true;
+  updateIssues(); setMsg("");
+  render();
+});
 
 startBtn.addEventListener("click", async () => {
   busy = true; output.textContent = ""; setMsg(""); hideSuggest(); clearHighlight();
@@ -275,7 +293,7 @@ function appendResult(str, page, isHead = false) {
     let last = 0;
     for (const m of line.matchAll(MARK_RE)) {
       if (m.index > last) div.append(line.slice(last, m.index));
-      const cls = { fix: "w-fix", guess: "w-guess" }[m[2]] || "w-unk";
+      const cls = { fix: "w-fix", guess: "w-guess", name: "w-name" }[m[2]] || "w-unk";
       const span = Object.assign(document.createElement("span"), { className: cls, textContent: m[1] });
       span.dataset.alts = m[3];
       if (m[2] === "fix") span.dataset.orig = m[3].split("|")[0];
@@ -299,7 +317,7 @@ function serialize(marks = false) {
       if (n.tagName === "BR") { out += "\n"; continue; }
       const block = n.tagName === "DIV" || n.tagName === "P";
       if (block && out && !out.endsWith("\n")) out += "\n";
-      const unk = marks && n.classList.contains("w-unk");
+      const unk = marks && (n.classList.contains("w-unk") || n.classList.contains("w-name"));
       if (unk) out += UNK_OPEN;
       walk(n);
       if (unk) out += UNK_CLOSE;
@@ -462,7 +480,7 @@ function spanRange(span) {
 function highlightAt(e) {
   const lineDiv = e.target.closest?.(".ln");
   if (!lineDiv || !output.contains(lineDiv)) return;
-  const span = e.target.closest(".w-unk, .w-fix, .w-guess");
+  const span = e.target.closest(".w-unk, .w-fix, .w-guess, .w-name");
   if (span) return highlight(lineDiv, spanRange(span));
   const caret = document.caretPositionFromPoint?.(e.clientX, e.clientY);
   const range = caret ? null : document.caretRangeFromPoint?.(e.clientX, e.clientY);
@@ -484,7 +502,7 @@ document.addEventListener("selectionchange", () => {
 });
 
 // ——— Переход по словам на проверку ———
-const issues = () => [...output.querySelectorAll(".w-unk, .w-guess")];
+const issues = () => [...output.querySelectorAll(".w-unk, .w-guess, .w-name")];
 let issueIndex = -1, issueSpan = null;
 
 function updateIssues() {
@@ -536,17 +554,18 @@ document.addEventListener("keydown", (e) => {
 const suggest = $("suggest");
 let suggestFor = null, hideTimer = null, suggestPinned = false;
 
-function showSuggest(span, pinned = false) {
+// at — точка нажатия: у слова, перенесённого на другую строку, окно открывается у той части, куда нажали
+function showSuggest(span, pinned = false, at = null) {
   clearTimeout(hideTimer);
   suggestPinned = pinned;
   if (suggestFor === span && !suggest.hidden) return;
   suggestFor = span;
   suggest.innerHTML = "";
-  const isFix = span.classList.contains("w-fix"), isGuess = span.classList.contains("w-guess");
+  const isFix = span.classList.contains("w-fix"), isGuess = span.classList.contains("w-guess"), isName = span.classList.contains("w-name");
   const alts = span.dataset.alts ? span.dataset.alts.split("|") : [];
   const title = document.createElement("div");
   title.className = "title";
-  title.textContent = isFix ? `Исправлено по словарю. На фото прочитано: «${span.dataset.orig}»`
+  title.textContent = isName ? "Фамилия или отчество — сверьте с фото, исправить можно прямо в тексте" : isFix ? `Исправлено по словарю. На фото прочитано: «${span.dataset.orig}»`
     : isGuess ? (alts.length ? "Слово обрезано краем — часть букв угадана. Возможно:" : "Слово обрезано краем, вариантов нет — сверьте с фото")
     : alts.length ? "Не уверен в слове. Возможно:" : "Не уверен в слове, вариантов нет — сверьте с фото";
   suggest.append(title);
@@ -558,10 +577,12 @@ function showSuggest(span, pinned = false) {
   };
   for (const a of alts) option(isFix && a === span.dataset.orig ? `Вернуть «${a}»` : a, a);
   if (isGuess && span.dataset.visible) option(`Только видимое на фото: «${span.dataset.visible}»`, span.dataset.visible, "keep");
-  option(`Оставить «${span.textContent}»`, span.textContent, "keep");
+  option(isName ? `Верно: «${span.textContent}»` : `Оставить «${span.textContent}»`, span.textContent, "keep");
   suggest.hidden = false;
-  const r = span.getBoundingClientRect();
-  const left = Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - suggest.offsetWidth - 8);
+  const rects = [...span.getClientRects()];
+  const r = (at && rects.find((q) => at.y >= q.top - 2 && at.y <= q.bottom + 2)) || rects[0] || span.getBoundingClientRect();
+  const x = at ? Math.max(r.left, Math.min(at.x - 24, r.right)) : r.left;   // у курсора, но не левее начала слова
+  const left = Math.min(window.scrollX + x, window.scrollX + document.documentElement.clientWidth - suggest.offsetWidth - 8);
   suggest.style.left = Math.max(8, left) + "px";
   suggest.style.top = window.scrollY + r.bottom + 6 + "px";
 }
@@ -582,8 +603,8 @@ function resolveWord(span, value) {
 // Варианты слова открываются только по нажатию (клик или тап), а не при наведении
 output.addEventListener("click", (e) => {
   highlightAt(e);
-  const span = e.target.closest(".w-unk, .w-fix, .w-guess");
-  if (span) showSuggest(span, true); else hideSuggest();
+  const span = e.target.closest(".w-unk, .w-fix, .w-guess, .w-name");
+  if (span) showSuggest(span, true, { x: e.clientX, y: e.clientY }); else hideSuggest();
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !suggest.hidden) hideSuggest(); });
 document.addEventListener("click", (e) => {
