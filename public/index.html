@@ -157,6 +157,7 @@
   #emailDlg::backdrop { background: rgba(0, 0, 0, .45); }
   #emailDlg h2 { font-size: 20px; margin: 0 0 14px; }
   #emailDlg .field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  #emailDlg .field[hidden] { display: none; }   /* поле пароля скрыто, если пароль уже принят на этом устройстве */
   #emailDlg input[type=email], #emailDlg input[type=text], #emailDlg input[type=password] { font: inherit; font-size: 16px; color: var(--text); padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); width: 100%; }
   #emailDlg .check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-bottom: 12px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; }
