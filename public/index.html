@@ -133,10 +133,13 @@
   @media (max-width: 899px) {
     .review { grid-template-columns: minmax(0, 1fr); }
     /* svh — высота экрана с развёрнутой адресной строкой: не меняется, когда браузер прячет и показывает строку при прокрутке */
-    .photo-pane { height: 34vh; height: 34svh; min-height: 220px; position: sticky; top: 0; z-index: 2; }
+    .photo-pane { height: 34vh; height: 34svh; min-height: 220px; position: sticky; top: var(--bar-h, 48px); z-index: 2; }
+    /* Строка с переключателем «Фото» и счётчиком слов прилипает к верху вместе с фото — фото можно выключить в любой момент */
+    .review-bar { position: sticky; top: 0; z-index: 3; background: var(--card); margin-bottom: 0; padding: 6px 0; }
     /* Открыта клавиатура: фото компактнее (доля видимой части экрана), а курсор браузер показывает под фото, не за ним */
-    html.kb-open { scroll-padding-top: calc(var(--vvh, 100dvh) * .3 + 16px); }
-    html.kb-open .photo-pane { height: calc(var(--vvh, 100dvh) * .3); min-height: 110px; top: var(--vvtop, 0px); }
+    html.kb-open { scroll-padding-top: calc(var(--vvh, 100dvh) * .3 + var(--bar-h, 48px) + 16px); }
+    html.kb-open .review-bar { top: var(--vvtop, 0px); }
+    html.kb-open .photo-pane { height: calc(var(--vvh, 100dvh) * .3); min-height: 110px; top: calc(var(--vvtop, 0px) + var(--bar-h, 48px)); }
     html.kb-open .mbar, html.kb-open .more-menu { display: none !important; }
     html.kb-open main { padding-bottom: 16px; }
     #output { height: auto; min-height: 320px; max-height: none; }
@@ -183,7 +186,7 @@
   /* Телефонный режим: сенсорный экран или просто узкое окно (некоторые телефоны не сообщают о сенсоре) */
   @media (hover: none) and (pointer: coarse), (max-width: 700px) {
     .touch-only { display: revert !important; }
-    .pick-row.touch-only { display: grid !important; grid-template-columns: 1fr auto; }
+    .pick-row.touch-only { display: grid !important; grid-template-columns: minmax(0, 1fr) 60px; }
     .mbar.touch-only { display: flex !important; }
     .mbar[hidden] { display: none !important; }
     .mouse-only { display: none !important; }
@@ -198,7 +201,7 @@
     .start-row #start { order: 1; } .start-row #msg { order: 2; }
   }
   .pick-row { gap: 10px; }
-  .pick-row .cam-btn { width: auto; aspect-ratio: 1; padding: 0; align-self: stretch; }   /* камера — квадратная иконка справа от галереи */
+  .pick-row .cam-btn { width: 60px; min-width: 0; padding: 0; align-self: stretch; }   /* камера — квадратная иконка справа от галереи */
   .pick-row .cam-btn .ic { width: 26px; height: 26px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
   /* Цветные кнопки действий с иконками */

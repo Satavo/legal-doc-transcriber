@@ -7,7 +7,7 @@
 // или "name" (фамилия или отчество — прочитано уверенно, но стоит сверить с фото).
 
 // Версия словарей: меняется при каждом обновлении words/forms/med/ctx, чтобы браузер не взял старые из кеша
-const DATA_VERSION = "med1";
+const DATA_VERSION = "med2";
 
 const DET_MAX_SIDE = 2240;     // макс. сторона изображения для детектора (кратно 32)
 const DET_THRESH = 0.3;        // порог бинаризации карты вероятностей
@@ -916,18 +916,22 @@ function splitGlued(w, words) {
 }
 
 // Словарные слова на расстоянии 1–2 правок. Замена буквы, в которой модель была уверена, «дорогая».
+const SURE_P = 0.9;   // буква прочитана уверенно — её замену делает только человек
 function nearWords(w, meta, words, vocab) {
   const lw = norm(w);
   const pOf = (i) => (meta && meta.word.length === w.length ? meta.probs[i] : 0.7);
   const found = new Map();   // слово → цена правок
-  const add = (cand, cost) => {
+  // sure — правка меняет букву, которую модель прочитала уверенно: такое слово не исправляем сами, только предлагаем
+  // («средовым» ≠ «бредовым» — в заключении это другой смысл)
+  const sureOf = new Map();
+  const add = (cand, cost, sure = false) => {
     if (cand === lw || !words.set.has(cand) && !(vocab.get(cand) > 1)) return;
-    if (!found.has(cand) || found.get(cand) > cost) found.set(cand, cost);
+    if (!found.has(cand) || found.get(cand) > cost) { found.set(cand, cost); sureOf.set(cand, sure); }
   };
   for (let i = 0; i < lw.length; i++) {
     add(lw.slice(0, i) + lw.slice(i + 1), 0.5 + pOf(i));                       // лишняя буква
     for (const ch of RU) {
-      add(lw.slice(0, i) + ch + lw.slice(i + 1), pOf(i));                       // замена
+      add(lw.slice(0, i) + ch + lw.slice(i + 1), pOf(i), pOf(i) >= SURE_P);      // замена
       add(lw.slice(0, i) + ch + lw.slice(i), 0.6);                              // пропущенная буква
     }
     if (i < lw.length - 1) add(lw.slice(0, i) + lw[i + 1] + lw[i] + lw.slice(i + 2), 0.8);   // перестановка
@@ -938,7 +942,7 @@ function nearWords(w, meta, words, vocab) {
     for (let a = 0; a < weak.length; a++) for (let b = a + 1; b < weak.length; b++) {
       const i = weak[a], j = weak[b];
       for (const c1 of RU) for (const c2 of RU) {
-        add(lw.slice(0, i) + c1 + lw.slice(i + 1, j) + c2 + lw.slice(j + 1), pOf(i) + pOf(j));
+        add(lw.slice(0, i) + c1 + lw.slice(i + 1, j) + c2 + lw.slice(j + 1), pOf(i) + pOf(j), Math.max(pOf(i), pOf(j)) >= SURE_P);
       }
     }
   }
@@ -949,17 +953,17 @@ function nearWords(w, meta, words, vocab) {
       const cand = words.list[k];
       if (Math.abs(cand.length - lw.length) > 2 || found.has(cand)) continue;
       const d = editDistance(lw, cand, 2);
-      if (d === 2) found.set(cand, 1.6);
+      if (d === 2) { found.set(cand, 1.6); sureOf.set(cand, true); }
     }
   }
   const rank = (x) => words.rank.get(x) ?? words.list.length;
   return [...found]
-    .map(([cand, cost]) => ({ word: applyCase(w, cand), cost, score: cost * 2 + Math.log(rank(cand) + 50) * 0.5 - Math.log(1 + (vocab.get(cand) ?? 0)) }))
+    .map(([cand, cost]) => ({ word: applyCase(w, cand), cost, sure: sureOf.get(cand), score: cost * 2 + Math.log(rank(cand) + 50) * 0.5 - Math.log(1 + (vocab.get(cand) ?? 0)) }))
     .sort((a, b) => a.score - b.score)
     .map((c, i, arr) => {
       const gap = arr.length < 2 ? Infinity : arr[1].score - c.score;
       // Модель сомневалась в заменяемой букве — или слово длинное, правка одна и других близких вариантов нет
-      const auto = i === 0 && ((c.cost < 1.0 && gap > 0.6) || (lw.length >= 6 && c.cost <= 1.5 && gap > 1.0));
+      const auto = i === 0 && !c.sure && ((c.cost < 1.0 && gap > 0.6) || (lw.length >= 6 && c.cost <= 1.5 && gap > 1.0));
       return { ...c, auto };
     });
 }

@@ -381,7 +381,16 @@ function openPage(i) {
   if (!head) return;
   syncPaused = Date.now() + 900;   // пока текст едет к странице, не переключаем фото обратно
   if (output.scrollHeight > output.clientHeight + 2) output.scrollTo({ top: head.offsetTop - output.offsetTop, behavior: "smooth" });
-  else window.scrollTo({ top: window.scrollY + head.getBoundingClientRect().top - $("photoPane").getBoundingClientRect().height - 16, behavior: "smooth" });
+  else window.scrollTo({ top: window.scrollY + head.getBoundingClientRect().top - stickyBottom() - 16, behavior: "smooth" });
+}
+
+// Высота закреплённой строки с переключателем «Фото» (на телефоне фото прилипает под ней)
+const reviewBar = document.querySelector(".review-bar");
+new ResizeObserver(() => document.documentElement.style.setProperty("--bar-h", reviewBar.offsetHeight + "px")).observe(reviewBar);
+// Нижний край закреплённой сверху части (строка «Фото» + фото), от верха видимой части экрана
+function stickyBottom() {
+  const pane = $("photoPane"), hidden = review.classList.contains("no-photo");
+  return reviewBar.offsetHeight + (hidden ? 0 : pane.offsetHeight);
 }
 
 // Листаете текст — фото само переключается на страницу, которую вы читаете
@@ -639,7 +648,7 @@ if (window.visualViewport && isTouch) {
     if (!r.height) r = (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement).getBoundingClientRect();
     // Координаты — от верха видимой части (на iPhone она бывает сдвинута относительно страницы)
     const y = r.top - Math.max(0, visualViewport.offsetTop), yb = y + r.height;
-    const top = $("photoPane").offsetHeight + 24, bottom = visualViewport.height - 24;
+    const top = stickyBottom() + 24, bottom = visualViewport.height - 24;
     if (y < top || yb > bottom) window.scrollBy({ top: y - top });
     // Фото стало меньше — заново ставим на нём строку с курсором
     lastSelLine = null;
