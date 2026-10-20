@@ -19,6 +19,12 @@ loadEngine().catch(() => {});
 loadWords().catch(() => {});
 loadContext().catch(() => {});
 
+// Телефон: камера и галерея. После снимка кнопка предлагает снять следующую страницу
+const isTouch = matchMedia("(hover: none) and (pointer: coarse)").matches;
+$("cameraBtn").addEventListener("click", () => $("camera").click());
+$("galleryBtn").addEventListener("click", () => picker.click());
+$("camera").addEventListener("change", () => { addFiles($("camera").files); $("camera").value = ""; });
+
 drop.addEventListener("click", () => picker.click());
 drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") picker.click(); });
 picker.addEventListener("change", () => { addFiles(picker.files); picker.value = ""; });
@@ -47,6 +53,7 @@ function render() {
   });
   startBtn.disabled = busy || items.length === 0;
   clearBtn.disabled = busy || items.length === 0;
+  $("cameraBtn").textContent = items.length ? "📷 Сфотографировать ещё страницу" : "📷 Сфотографировать страницу";
 }
 
 function btn(label, disabled, onClick) {
@@ -91,6 +98,8 @@ clearBtn.addEventListener("click", () => { items.forEach((it) => inUse(it.url) |
 
 startBtn.addEventListener("click", async () => {
   busy = true; output.textContent = ""; setMsg(""); hideSuggest(); clearHighlight();
+  $("resultCard").hidden = false;
+  $("mbar").hidden = false;
   pages.forEach((p) => items.some((it) => it.url === p.url) || URL.revokeObjectURL(p.url));
   pages = items.map((it) => ({ url: it.url, name: it.file.name }));
   items.forEach((it) => { it.status = "в очереди"; it.cls = ""; });
@@ -117,7 +126,23 @@ startBtn.addEventListener("click", async () => {
     setMsg(n ? `Готово · слов на проверку: ${n}` : "Готово");
   }
   showPage(0);
+  $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
 });
+
+// На телефоне текст сначала только для чтения: нажатие на слово открывает варианты, а не клавиатуру
+function setEditing(on) {
+  output.contentEditable = on ? "true" : "false";
+  $("editToggle").setAttribute("aria-pressed", String(on));
+  $("editToggle").textContent = on ? "✓ Готово" : "✎ Править текст";
+  if (on) output.focus();
+}
+if (isTouch) setEditing(false);
+$("editToggle").addEventListener("click", () => setEditing(output.contentEditable !== "true"));
+
+// Нижняя панель на телефоне
+$("mPrev").addEventListener("click", () => goIssue(-1));
+$("mNext").addEventListener("click", () => goIssue(1));
+$("mSend").addEventListener("click", () => $("emailBtn").click());
 
 function setMsg(text, isErr) { msg.textContent = text; msg.className = isErr ? "err" : ""; }
 
@@ -178,8 +203,10 @@ $("showPhoto").addEventListener("change", (e) => review.classList.toggle("no-pho
 
 function showPage(i) {
   if (!pages[i]) return Promise.resolve(false);
-  if (shownPage === i && photoImg.complete && photoImg.naturalWidth) return Promise.resolve(true);
+  // Сравниваем само фото, а не номер страницы: после новой расшифровки «страница 1» — уже другое фото
+  if (shownPage === i && photoImg.dataset.url === pages[i].url && photoImg.complete && photoImg.naturalWidth) return Promise.resolve(true);
   shownPage = i;
+  photoImg.dataset.url = pages[i].url;
   $("photoEmpty").hidden = true;
   photoWrap.hidden = false;
   $("photoTitle").textContent = pages.length > 1 ? `Страница ${i + 1} · ${pages[i].name}` : pages[i].name;
@@ -266,21 +293,21 @@ function spanRange(span) {
   return [start, start + span.textContent.length];
 }
 
-// Наведение мышью: строка и слово под курсором
+// Строка и слово в точке экрана (под мышью или под пальцем) — подсветить на фото
+function highlightAt(e) {
+  const lineDiv = e.target.closest?.(".ln");
+  if (!lineDiv || !output.contains(lineDiv)) return;
+  const span = e.target.closest(".w-unk, .w-fix, .w-guess");
+  if (span) return highlight(lineDiv, spanRange(span));
+  const caret = document.caretPositionFromPoint?.(e.clientX, e.clientY);
+  const range = caret ? null : document.caretRangeFromPoint?.(e.clientX, e.clientY);
+  const node = caret ? caret.offsetNode : range?.startContainer, off = caret ? caret.offset : range?.startOffset;
+  highlight(lineDiv, node && lineDiv.contains(node) ? wordRangeAt(lineDiv, offsetInLine(lineDiv, node, off)) : null);
+}
 let hoverFrame = 0;
 output.addEventListener("mousemove", (e) => {
-  if (hoverFrame) return;
-  hoverFrame = requestAnimationFrame(() => {
-    hoverFrame = 0;
-    const lineDiv = e.target.closest?.(".ln");
-    if (!lineDiv || !output.contains(lineDiv)) return;
-    const span = e.target.closest(".w-unk, .w-fix, .w-guess");
-    if (span) return highlight(lineDiv, spanRange(span));
-    const caret = document.caretPositionFromPoint?.(e.clientX, e.clientY);
-    const range = caret ? null : document.caretRangeFromPoint?.(e.clientX, e.clientY);
-    const node = caret ? caret.offsetNode : range?.startContainer, off = caret ? caret.offset : range?.startOffset;
-    highlight(lineDiv, node && lineDiv.contains(node) ? wordRangeAt(lineDiv, offsetInLine(lineDiv, node, off)) : null);
-  });
+  if (hoverFrame || isTouch) return;
+  hoverFrame = requestAnimationFrame(() => { hoverFrame = 0; highlightAt(e); });
 });
 
 // Курсор в тексте (клавиатура, клик) — тоже показываем место на фото
@@ -300,6 +327,9 @@ function updateIssues() {
   $("prevIssue").disabled = $("nextIssue").disabled = !all.length;
   const pos = issueSpan && all.includes(issueSpan) ? all.indexOf(issueSpan) + 1 : 0;
   $("issueInfo").textContent = all.length ? (pos ? `${pos} из ${all.length}` : `на проверку: ${all.length}`) : output.textContent.trim() ? "Все слова проверены" : "";
+  $("mPrev").disabled = !all.length;
+  $("mNext").disabled = !all.length;
+  $("mNext").textContent = all.length ? (pos ? `${pos} из ${all.length} →` : `Проверить: ${all.length} →`) : "Проверено ✓";
 }
 
 function goIssue(dir) {
@@ -316,7 +346,7 @@ function goIssue(dir) {
   // так, чтобы слово оказалось ниже закреплённого фото
   const r = issueSpan.getBoundingClientRect();
   if (output.scrollHeight > output.clientHeight + 2) output.scrollTop += r.top - output.getBoundingClientRect().top - output.clientHeight / 3;
-  else window.scrollBy({ top: r.top - window.innerHeight * 0.68 });
+  else window.scrollBy({ top: r.top - window.innerHeight * 0.42 });   // сразу под фото, выше шторки с вариантами
   highlight(issueSpan.closest(".ln"), spanRange(issueSpan));
   setTimeout(() => showSuggest(issueSpan, true), 60);
   updateIssues();
@@ -383,6 +413,7 @@ output.addEventListener("mouseover", (e) => {
 });
 output.addEventListener("mouseout", (e) => { if (e.target.closest(".w-unk, .w-fix, .w-guess")) scheduleHide(); });
 output.addEventListener("click", (e) => {
+  highlightAt(e);
   const span = e.target.closest(".w-unk, .w-fix, .w-guess");
   if (span) showSuggest(span, true); else hideSuggest();
 });
@@ -390,7 +421,7 @@ suggest.addEventListener("mouseenter", () => clearTimeout(hideTimer));
 suggest.addEventListener("mouseleave", scheduleHide);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !suggest.hidden) hideSuggest(); });
 document.addEventListener("click", (e) => {
-  if (!suggest.contains(e.target) && !e.target.closest("#output") && !e.target.closest(".review-bar")) hideSuggest();
+  if (!suggest.contains(e.target) && !e.target.closest("#output, .review-bar, #mbar")) hideSuggest();
 });
 output.addEventListener("scroll", () => { if (!suggestPinned) hideSuggest(); });
 // Вставка в поле — только обычным текстом, без чужого оформления
@@ -481,7 +512,7 @@ $("emailBtn").addEventListener("click", async () => {
     $("emailPwRow").hidden = true;
     $("emailSend").textContent = canShareFiles() ? "Поделиться" : "Почтовая программа";
     setEmailMsg(canShareFiles()
-      ? "Откроется меню «Поделиться» с двумя файлами .docx — выберите почту."
+      ? "Откроется «Поделиться» — выберите Gmail или Почту. Текст и оба файла уже будут в письме, а адрес скопируется: в поле «Кому» нажмите «Вставить»."
       : "Письмо откроется в вашей почте с адресатом, темой и текстом. Файлы .docx скачаются — приложите их к письму.");
   }
 });
@@ -549,12 +580,14 @@ async function sendFromOwnMail(target) {
   ] : [];
   rememberEmails(to);
   renderSaved();
-  if (target === "share" && files.length) {
-    // Адресата в меню «Поделиться» передать нельзя — копируем его, чтобы вставить в письмо
-    await navigator.clipboard?.writeText(to.join(", ")).catch(() => {});
+  if (target === "share") {
+    // Адресата в меню «Поделиться» передать нельзя — копируем его, чтобы вставить в поле «Кому».
+    // Без await перед share: иначе телефон может посчитать, что нажатие уже «прошло», и не открыть меню
+    navigator.clipboard?.writeText(to.join(", ")).catch(() => {});
     try {
-      await navigator.share({ files, title: subject, text: subject });
-      setEmailMsg(`Адрес скопирован — вставьте его в письмо: ${to.join(", ")}`, "ok");
+      // Текст письма — чистовик; почтовые приложения кладут его в тело письма, а title — в тему
+      await navigator.share({ ...(files.length ? { files } : {}), title: subject, text: cleanCopy(serialize()) });
+      setEmailMsg(`Адрес скопирован — в поле «Кому» нажмите «Вставить»: ${to.join(", ")}`, "ok");
     } catch (err) {
       if (err.name !== "AbortError") setEmailMsg("Не удалось открыть меню «Поделиться»: " + err.message, "err");
     }
