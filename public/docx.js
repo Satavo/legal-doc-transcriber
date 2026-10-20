@@ -1,25 +1,30 @@
 // Сборка .docx из текста расшифровки без внешних библиотек.
-// Каждая страница («===== Страница N =====») начинается с нового листа,
+// Каждая страница начинается с нового листа и заголовка «===== Страница N =====» (жирный, серый, по центру),
 // достроенные по словарю фрагменты («[тель?]», «[…]») подсвечиваются жёлтым.
 
 const PAGE_MARK = /^===== Страница \d+ =====$/;
+const EMPTY = "<w:p/>";
 
 export function makeDocx(text) {
   const body = [];
-  let firstPage = true;
+  let firstPage = true, afterHead = false;
   for (const line of text.replace(/\r/g, "").split("\n")) {
     if (PAGE_MARK.test(line)) {
-      if (!firstPage) body.push(`<w:p><w:r><w:br w:type="page"/></w:r></w:p>`);
+      while (body.at(-1) === EMPTY) body.pop();   // пустые строки перед новой страницей не нужны
+      body.push(`<w:p><w:pPr>${firstPage ? "" : "<w:pageBreakBefore/>"}<w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>`
+        + `<w:r><w:rPr><w:b/><w:color w:val="666666"/></w:rPr><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`);
       firstPage = false;
+      afterHead = true;
       continue;
     }
-    body.push(paragraph(line));
+    const p = paragraph(line);
+    if (afterHead && p === EMPTY) continue;    // и сразу после заголовка тоже
+    afterHead = false;
+    body.push(p);
   }
-  // Убираем пустые абзацы вокруг разрывов страниц и по краям документа
-  const xml = body.join("")
-    .replace(/(<w:p\/>)+(<w:p><w:r><w:br w:type="page"\/><\/w:r><\/w:p>)/g, "$2")
-    .replace(/(<w:br w:type="page"\/><\/w:r><\/w:p>)(<w:p\/>)+/g, "$1")
-    .replace(/^(<w:p\/>)+|(<w:p\/>)+$/g, "");
+  while (body[0] === EMPTY) body.shift();
+  while (body.at(-1) === EMPTY) body.pop();
+  const xml = body.join("");
 
   const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${xml}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1701" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
