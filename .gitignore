@@ -1,0 +1,12 @@
+node_modules
+.env*
+.vercel
+.claude
+public/_test
+
+# Служебная папка: в репозиторий идут только скрипты сборки контекста и замера точности,
+# скачанные словари и тексты кодексов — нет (их можно получить заново скриптами)
+.tools/*
+!.tools/build-ctx.cjs
+!.tools/fetch-codes.cjs
+!.tools/bench.js

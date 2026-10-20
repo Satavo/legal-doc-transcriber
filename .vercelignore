@@ -1,0 +1,5 @@
+node_modules
+.claude
+dev-server.js
+.tools
+public/_test
