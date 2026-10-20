@@ -243,6 +243,7 @@ function setEditing(on) {
   $("mEdit").setAttribute("aria-pressed", String(on)); $("mEdit").classList.toggle("on", on);
   setMsg(on ? "Режим правки: меняйте текст прямо в поле" : "");
   if (on) { hideSuggest(); output.focus(); placeCaretAtLastTap(); }
+  else document.documentElement.classList.remove("kb-open");
 }
 
 // Место последнего нажатия в тексте (строка и позиция в ней): карандаш открывает правку именно там.
@@ -594,12 +595,53 @@ output.addEventListener("mousemove", (e) => {
 });
 
 // Курсор в тексте (клавиатура, клик) — тоже показываем место на фото
+// При наборе текста подсветка обновляется с паузой, а фото прокручивается, только когда курсор ушёл на другую строку —
+// иначе на телефоне с открытой клавиатурой экран «прыгает» на каждую букву
+let selTimer = 0, lastSelLine = null;
 document.addEventListener("selectionchange", () => {
   const sel = document.getSelection();
   if (!sel.rangeCount || !output.contains(sel.anchorNode)) return;
-  const lineDiv = (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement).closest(".ln");
-  if (lineDiv) highlight(lineDiv, wordRangeAt(lineDiv, offsetInLine(lineDiv, sel.anchorNode, sel.anchorOffset)));
+  const update = () => {
+    if (!sel.rangeCount || !output.contains(sel.anchorNode)) return;
+    const lineDiv = (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement).closest(".ln");
+    if (!lineDiv) return;
+    const newLine = lineDiv !== lastSelLine;
+    lastSelLine = lineDiv;
+    highlight(lineDiv, wordRangeAt(lineDiv, offsetInLine(lineDiv, sel.anchorNode, sel.anchorOffset)), newLine || !editingOnTouch());
+  };
+  clearTimeout(selTimer);
+  if (editingOnTouch()) selTimer = setTimeout(update, 250); else update();
 });
+const editingOnTouch = () => isTouch && output.contentEditable === "true";
+
+// Клавиатура на телефоне: высота видимой части экрана — в CSS (--vvh), класс kb-open, пока клавиатура открыта
+if (window.visualViewport && isTouch) {
+  let fullH = visualViewport.height;
+  const onViewport = () => {
+    const h = visualViewport.height;
+    if (h > fullH) fullH = h;
+    document.documentElement.style.setProperty("--vvh", h + "px");
+    const wasOpen = document.documentElement.classList.contains("kb-open");
+    const open = h < fullH * 0.8 && output.contentEditable === "true";
+    document.documentElement.classList.toggle("kb-open", open);
+    if (open && !wasOpen) requestAnimationFrame(revealCaret);   // клавиатура только что открылась
+  };
+  // Строка с курсором — сразу под закреплённым фото (один раз, без «качелей»)
+  const revealCaret = () => {
+    const sel = getSelection();
+    if (!sel.rangeCount || !output.contains(sel.anchorNode)) return;
+    let r = sel.getRangeAt(0).getBoundingClientRect();
+    if (!r.height) r = (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement).getBoundingClientRect();
+    const top = $("photoPane").offsetHeight + 24, bottom = visualViewport.height - 24;
+    if (r.top < top || r.bottom > bottom) window.scrollBy({ top: r.top - top });
+    // Фото стало меньше — заново ставим на нём строку с курсором
+    lastSelLine = null;
+    document.dispatchEvent(new Event("selectionchange"));
+  };
+  visualViewport.addEventListener("resize", onViewport);
+  addEventListener("orientationchange", () => { fullH = 0; setTimeout(onViewport, 300); });
+  onViewport();
+}
 
 // ——— Переход по словам на проверку ———
 const issues = () => [...output.querySelectorAll(".w-unk, .w-guess, .w-name")];

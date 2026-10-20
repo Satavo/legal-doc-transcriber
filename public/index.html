@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>Расшифровка документов</title>
 <!-- На GitHub Pages нельзя задать заголовки COOP/COEP; этот скрипт включает их через service worker,
      чтобы распознавание работало в несколько потоков (coi-serviceworker, MIT) -->
@@ -132,7 +132,10 @@
   .hl-word { background: rgba(255, 196, 0, .35); outline: 2px solid #e0a800; }
   @media (max-width: 899px) {
     .review { grid-template-columns: minmax(0, 1fr); }
-    .photo-pane { height: 34vh; min-height: 220px; position: sticky; top: 0; z-index: 2; }
+    .photo-pane { height: 34vh; height: 34dvh; min-height: 220px; position: sticky; top: 0; z-index: 2; }
+    /* Открыта клавиатура: фото компактнее (доля видимой части экрана), а курсор браузер показывает под фото, не за ним */
+    html.kb-open { scroll-padding-top: calc(var(--vvh, 100dvh) * .3 + 16px); }
+    html.kb-open .photo-pane { height: calc(var(--vvh, 100dvh) * .3); min-height: 110px; }
     #output { height: auto; min-height: 320px; max-height: none; }
   }
   #output:focus { border-color: var(--accent); }
