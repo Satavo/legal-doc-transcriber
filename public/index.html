@@ -169,7 +169,8 @@
   .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   /* Компьютер: сообщение слева, «Очистить» и крупная «Расшифровать» справа (на телефоне порядок свой — ниже) */
   .start-row #msg { order: 0; flex: 1; min-width: 0; }
-  .start-row #clear { order: 1; }
+  .start-row #clear { order: 1; align-self: stretch; aspect-ratio: 1; padding: 0; min-width: 50px; border-radius: 12px; }
+  .start-row #clear .ic { width: 22px; height: 22px; }
   .start-row #start { order: 2; padding: 14px 30px; font-size: 17px; border-radius: 12px; }
   .start-row #start .ic { width: 21px; height: 21px; }
   .act.c-red:disabled { opacity: .7; }   /* красная видна и когда неактивна */
@@ -189,7 +190,7 @@
     .start-row { display: grid !important; grid-template-columns: 1fr auto; gap: 10px; }
     .start-row #start { min-height: 56px; font-size: 18px; border-radius: 14px; }
     .start-row #start .ic { width: 22px; height: 22px; }
-    .start-row #clear { min-height: 56px; border-radius: 14px; }
+    .start-row #clear { min-height: 56px; min-width: 56px; border-radius: 14px; }
     .start-row #msg { grid-column: 1 / -1; }
     .start-row #start, .start-row #clear, .start-row #msg { order: 0; }
   }
@@ -294,7 +295,7 @@
     <ul id="files"></ul>
     <div class="row start-row">
       <button class="act solid c-blue" id="start" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg><span class="lbl">Расшифровать</span></button>
-      <button class="act solid c-red" id="clear" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Очистить</button>
+      <button class="act solid c-red" id="clear" disabled title="Очистить" aria-label="Очистить"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
       <span id="msg"></span>
     </div>
     <div class="progress" id="progress" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="pgText">
