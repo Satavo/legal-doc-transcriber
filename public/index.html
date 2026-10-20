@@ -168,13 +168,10 @@
   .dlg-msg { min-height: 20px; font-size: 14px; margin: 0 0 12px; color: var(--muted); }
   .dlg-msg.err { color: var(--danger); } .dlg-msg.ok { color: var(--ok); }
   .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-  /* Компьютер: корзина слева, затем сообщение, крупная «Расшифровать» справа (на телефоне порядок свой — ниже) */
+  /* Компьютер: сообщение слева, крупная «Расшифровать» справа (на телефоне — на всю ширину) */
   .start-row #msg { order: 1; flex: 1; min-width: 0; }
-  .start-row #clear { order: 0; align-self: stretch; aspect-ratio: 1; padding: 0; min-width: 50px; border-radius: 12px; }
-  .start-row #clear .ic { width: 22px; height: 22px; }
   .start-row #start { order: 2; padding: 14px 30px; font-size: 17px; border-radius: 12px; }
   .start-row #start .ic { width: 21px; height: 21px; }
-  .act.c-red:disabled { opacity: .7; }   /* красная видна и когда неактивна */
   /* Телефон и компьютер: свои элементы управления */
   .touch-only { display: none !important; }
   /* Телефонный режим: сенсорный экран или просто узкое окно (некоторые телефоны не сообщают о сенсоре) */
@@ -187,13 +184,12 @@
     .hl { transition: none; }   /* подсветка на фото встаёт сразу, без «переезда» */
     /* В режиме чтения долгое нажатие не выделяет текст — нажатия только для вариантов слова */
     #output[contenteditable="false"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-    /* Корзина слева, большая «Расшифровать» на остальную ширину */
-    .start-row { display: grid !important; grid-template-columns: auto 1fr; gap: 10px; }
+    /* Большая «Расшифровать» на всю ширину */
+    .start-row { display: grid !important; grid-template-columns: 1fr; gap: 10px; }
     .start-row #start { min-height: 56px; font-size: 18px; border-radius: 14px; }
     .start-row #start .ic { width: 22px; height: 22px; }
-    .start-row #clear { min-height: 56px; width: 56px; min-width: 56px; aspect-ratio: auto; border-radius: 14px; }
     .start-row #msg { grid-column: 1 / -1; }
-    .start-row #clear { order: 0; } .start-row #start { order: 1; } .start-row #msg { order: 2; }
+    .start-row #start { order: 1; } .start-row #msg { order: 2; }
   }
   .pick-row { gap: 10px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
@@ -297,7 +293,6 @@
     <ul id="files"></ul>
     <div class="row start-row">
       <button class="act solid c-blue" id="start" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg><span class="lbl">Расшифровать</span></button>
-      <button class="act solid c-red" id="clear" disabled title="Очистить" aria-label="Очистить"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
       <span id="msg"></span>
     </div>
     <p class="hint">Страницы обрабатываются по порядку сверху вниз — порядок можно поменять стрелками.</p>

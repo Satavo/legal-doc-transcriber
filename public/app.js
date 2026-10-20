@@ -9,7 +9,7 @@ const UNK_OPEN = "", UNK_CLOSE = "";   // для .docx: сомнитель
 
 const $ = (id) => document.getElementById(id);
 const drop = $("drop"), picker = $("picker"), list = $("files"), output = $("output");
-const startBtn = $("start"), clearBtn = $("clear"), msg = $("msg");
+const startBtn = $("start"), msg = $("msg");
 let items = [];   // { file, url, status }
 let busy = false;
 let pages = [];   // фото страниц результата: { url, name }
@@ -111,7 +111,6 @@ function render() {
     list.append(li);
   });
   startBtn.disabled = busy || items.length === 0;
-  clearBtn.disabled = busy || items.length === 0;
   $("cameraBtn").querySelector(".lbl").textContent = items.length ? "Сфотографировать ещё страницу" : "Сфотографировать страницу";
 }
 
@@ -171,9 +170,13 @@ document.addEventListener("keydown", (e) => {
 function move(i, d) { [items[i], items[i + d]] = [items[i + d], items[i]]; render(); }
 // Фото, по которым уже есть расшифровка, не освобождаем — они нужны для сверки
 const inUse = (url) => pages.some((p) => p.url === url);
-function remove(i) { if (!inUse(items[i].url)) URL.revokeObjectURL(items[i].url); items.splice(i, 1); render(); }
-// «Очистить» убирает и фото, и расшифровку в окне редактирования
-clearBtn.addEventListener("click", () => {
+// Убрали последнее фото — очищается и расшифровка в окне редактирования
+function remove(i) {
+  if (!inUse(items[i].url)) URL.revokeObjectURL(items[i].url);
+  items.splice(i, 1);
+  if (!items.length && !busy) clearAll(); else render();
+}
+function clearAll() {
   items.forEach((it) => URL.revokeObjectURL(it.url));
   pages.forEach((p) => URL.revokeObjectURL(p.url));
   items = []; pages = [];
@@ -186,7 +189,7 @@ clearBtn.addEventListener("click", () => {
   $("resultCard").hidden = true; $("mbar").hidden = true;
   updateIssues(); setMsg("");
   render();
-});
+}
 
 startBtn.addEventListener("click", async () => {
   busy = true; output.textContent = ""; setMsg(""); hideSuggest(); clearHighlight();
