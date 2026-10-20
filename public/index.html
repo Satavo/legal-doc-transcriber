@@ -47,6 +47,36 @@
   #files li.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
   #files li.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
   #files .status.done { color: var(--ok); } #files .status.err { color: var(--danger); }
+  /* Страница, которая распознаётся сейчас: рамка, заливка по ходу работы и вращающийся значок */
+  #files li.busy { border-color: var(--accent); background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent) var(--p, 0%), transparent var(--p, 0%)); }
+  #files .status.working { color: var(--accent); display: flex; align-items: center; gap: 6px; }
+  #files .status.working::before { content: ""; width: 12px; height: 12px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
+  /* Общий прогресс расшифровки */
+  .spinner { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  .progress { margin-top: 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent); animation: rise .25s ease-out; }
+  .progress[hidden] { display: none; }
+  .pg-head { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  #pgText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pgPct { font-variant-numeric: tabular-nums; color: var(--accent); }
+  .pg-bar { margin-top: 10px; height: 8px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .pg-bar > div, .top-progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #22d3ee)); transition: width .35s ease;
+    background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+  .pg-bar > div { border-radius: 99px; }
+  .top-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 20; pointer-events: none; }
+  .top-progress[hidden] { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+  /* Кнопка «Расшифровать» во время работы */
+  .act.loading:disabled { opacity: 1; cursor: progress; }
+  .act.loading .ic { display: none; }
+  .act.loading::before { content: ""; width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .8s linear infinite; }
+  /* Выбор варианта .docx */
+  .docx-menu { position: fixed; z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: rise .18s ease-out; min-width: 230px; }
+  .docx-menu[hidden] { display: none; }
+  .docx-menu .act { justify-content: flex-start; min-height: 44px; }
+  .docx-menu .act small { font-weight: 400; opacity: .75; margin-left: auto; padding-left: 10px; }
+  .docx-menu .ttl { font-size: 13px; color: var(--muted); padding: 2px 4px 4px; }
+  .actions-row #emailBtn { margin-left: auto; }
   .icon-btn { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; flex: none; }
   .icon-btn:disabled { opacity: .35; cursor: default; }
   .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
@@ -59,7 +89,7 @@
   /* Тап по тексту: без серой вспышки, без увеличения двойным тапом и выделения слова долгим нажатием */
   #output { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   /* Режим правки заметен по рамке поля */
-  #output.editing { border-color: #8b5cf6; box-shadow: 0 0 0 3px color-mix(in srgb, #8b5cf6 22%, transparent); }
+  #output.editing, #output.pc-edit:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px color-mix(in srgb, #8b5cf6 22%, transparent); }
   .act.on { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 72%, #000)); }
   /* Граница страниц — заметная плашка «Страница N» во всю ширину поля (в тексте остаётся «===== Страница N =====») */
   #output .ln.page-head { font-size: 0; line-height: 0; margin: 18px -16px 12px; padding: 0; border-radius: 0; }
@@ -137,6 +167,12 @@
   .dlg-msg { min-height: 20px; font-size: 14px; margin: 0 0 12px; color: var(--muted); }
   .dlg-msg.err { color: var(--danger); } .dlg-msg.ok { color: var(--ok); }
   .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  /* Компьютер: сообщение слева, «Очистить» и крупная «Расшифровать» справа (на телефоне порядок свой — ниже) */
+  .start-row #msg { order: 0; flex: 1; min-width: 0; }
+  .start-row #clear { order: 1; }
+  .start-row #start { order: 2; padding: 14px 30px; font-size: 17px; border-radius: 12px; }
+  .start-row #start .ic { width: 21px; height: 21px; }
+  .act.c-red:disabled { opacity: .7; }   /* красная видна и когда неактивна */
   /* Телефон и компьютер: свои элементы управления */
   .touch-only { display: none !important; }
   /* Телефонный режим: сенсорный экран или просто узкое окно (некоторые телефоны не сообщают о сенсоре) */
@@ -155,12 +191,13 @@
     .start-row #start .ic { width: 22px; height: 22px; }
     .start-row #clear { min-height: 56px; border-radius: 14px; }
     .start-row #msg { grid-column: 1 / -1; }
+    .start-row #start, .start-row #clear, .start-row #msg { order: 0; }
   }
   .pick-row { gap: 10px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
   /* Цветные кнопки действий с иконками */
-  .c-blue { --c: #3b6cf6; } .c-violet { --c: #8b5cf6; } .c-red { --c: #e5484d; } .c-sky { --c: #0ea5e9; }
-  .c-word { --c: #2b62c9; } .c-slate { --c: #64748b; } .c-green { --c: #16a34a; } .c-amber { --c: #f59e0b; }
+  .act.c-blue { --c: #3b6cf6; } .act.c-violet { --c: #8b5cf6; } .act.c-red { --c: #e5484d; } .act.c-sky { --c: #0ea5e9; }
+  .act.c-word { --c: #2b62c9; } .act.c-slate { --c: #64748b; } .act.c-green { --c: #16a34a; } .act.c-amber { --c: #f59e0b; }
   .act { --c: var(--accent); position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer;
     color: color-mix(in srgb, var(--c) 82%, var(--text)); background: color-mix(in srgb, var(--c) 11%, transparent);
@@ -256,9 +293,13 @@
     <input id="camera" type="file" accept="image/*" capture="environment" hidden>
     <ul id="files"></ul>
     <div class="row start-row">
-      <button class="act solid c-blue" id="start" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg>Расшифровать</button>
+      <button class="act solid c-blue" id="start" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg><span class="lbl">Расшифровать</span></button>
       <button class="act solid c-red" id="clear" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Очистить</button>
       <span id="msg"></span>
+    </div>
+    <div class="progress" id="progress" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="pgText">
+      <div class="pg-head"><span class="spinner" aria-hidden="true"></span><span id="pgText">Подготовка…</span><span id="pgPct">0%</span></div>
+      <div class="pg-bar"><div id="pgFill"></div></div>
     </div>
     <p class="hint">Страницы обрабатываются по порядку сверху вниз — порядок можно поменять стрелками.</p>
   </section>
@@ -268,7 +309,6 @@
       <button class="secondary small mouse-only" id="prevIssue" title="Предыдущее слово на проверку (Alt+↑)" disabled>←</button>
       <button class="secondary small mouse-only" id="nextIssue" title="Следующее слово на проверку (Alt+↓)" disabled>Следующее слово на проверку →</button>
       <span id="issueInfo"></span>
-      <button class="act c-violet small mouse-only" id="editBtn" type="button" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><span class="lbl">Править текст</span></button>
       <label class="switch" title="Показывать фото рядом с текстом">
         <input type="checkbox" id="showPhoto" role="switch" checked>
         <span class="track" aria-hidden="true"><span class="knob"></span></span>
@@ -302,7 +342,7 @@
       <button class="act solid c-green" id="emailBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Отправить на email</button>
     </div>
     <p class="hint touch-only"><span class="w-unk">Жёлтым</span> — не уверен, <span class="w-fix">пунктиром</span> — исправлено, <span class="w-guess">оранжевым</span> — обрезано краем. Нажмите на слово, чтобы выбрать вариант; лупа внизу ведёт по всем таким словам. Править текст вручную — карандашом.</p>
-    <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Править текст вручную — кнопкой «Править текст».</p>
+    <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Чтобы править текст, просто щёлкните в нужное место.</p>
   </section>
 </main>
 
@@ -321,6 +361,16 @@
   <button type="button" class="act c-word" data-act="downloadDocx" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
   <button type="button" class="act c-slate" data-act="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
 </div>
+
+<!-- Какой .docx скачать -->
+<div class="docx-menu" id="docxMenu" role="menu" hidden>
+  <div class="ttl">Скачать .docx</div>
+  <button type="button" class="act c-amber" data-docx="marked" role="menuitem">С пометками<small>жёлтые правки</small></button>
+  <button type="button" class="act c-word" data-docx="clean" role="menuitem">Чистовик<small>без пометок</small></button>
+  <button type="button" class="act solid c-word" data-docx="both" role="menuitem">Оба файла</button>
+</div>
+
+<div class="top-progress" id="topProgress" hidden><div id="topFill"></div></div>
 
 <div id="suggest" hidden role="menu"></div>
 

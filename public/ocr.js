@@ -24,7 +24,7 @@ export function loadEngine(onProgress = () => {}) {
     enginePromise = (async () => {
       ort.env.wasm.wasmPaths = new URL("vendor/", location.href).href;
       ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
-      onProgress("Загрузка моделей распознавания…");
+      onProgress("Загрузка моделей распознавания…", 0.02);
       const opts = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
       const [det, rec, dict] = await Promise.all([
         ort.InferenceSession.create("models/det.onnx", opts),
@@ -53,12 +53,13 @@ export async function recognize(file, onProgress = () => {}, debug = null) {
   sctx.drawImage(bitmap, 0, 0);
   bitmap.close();
 
-  onProgress("Поиск строк текста…");
+  onProgress("Поиск строк текста…", 0.05);
   const boxes = await detect(engine.det, src);
   const lines = [];
   const info = new Map();   // слово → { minP, probs, alts } — насколько модель уверена в каждой букве
   for (let i = 0; i < boxes.length; i++) {
-    if (i % 10 === 0) onProgress(`Распознавание: ${i} из ${boxes.length} фрагментов…`);
+    // Вторым аргументом — доля готовности страницы (0…1), чтобы страница могла показать полосу прогресса
+    if (i % 3 === 0) onProgress(`Чтение строк: ${i} из ${boxes.length}…`, 0.1 + 0.8 * (i / Math.max(1, boxes.length)));
     const r = await recognizeBox(engine, src, boxes[i]);
     const meanP = r.probs.length ? r.probs.reduce((a, b) => a + b, 0) / r.probs.length : 0;
     const text = cleanFragment(r, info);
@@ -85,7 +86,7 @@ export async function recognize(file, onProgress = () => {}, debug = null) {
       if (line.edgeL) line.text = completeStart(line.text, words, vocab);
     }
   }
-  onProgress("Проверка слов по словарю…");
+  onProgress("Проверка слов по словарю…", 0.92);
   // Слова в начале и конце строки могли уйти в изгиб страницы — достраиваем и там
   const fixRowEdges = (row) => {
     if (!words) return;

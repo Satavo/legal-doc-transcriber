@@ -70,6 +70,11 @@ function render() {
     if (items.length > 1) btns.append(btn("↑", i === 0, () => move(i, -1), "Выше"), btn("↓", i === items.length - 1, () => move(i, 1), "Ниже"));
     btns.append(btn("✕", false, () => remove(i), "Убрать фото"));
     li.append(thumb, info, btns);
+    if (it.working) {
+      li.classList.add("busy");
+      li.style.setProperty("--p", Math.round((it.frac || 0) * 100) + "%");
+      info.lastChild.classList.add("working");
+    }
     // На компьютере порядок страниц можно менять перетаскиванием
     if (!isTouch && items.length > 1 && !busy) {
       li.draggable = true;
@@ -159,22 +164,33 @@ startBtn.addEventListener("click", async () => {
   shownPage = -1;
   renderPageTabs();
   items.forEach((it) => { it.status = "в очереди"; it.cls = ""; });
+  setLoading(true);
   render();
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
-    it.status = "обработка…"; render();
+    it.status = "обработка…"; it.working = true; it.frac = 0; render();
+    setProgress(i, 0, "Подготовка…");
     if (items.length > 1) appendResult(`===== Страница ${i + 1} =====`, i, true);
     try {
-      appendResult(await recognize(it.file, (s) => { it.status = s; render(); }), i);
+      appendResult(await recognize(it.file, (s, frac) => {
+        it.status = s;
+        if (frac != null) it.frac = frac;
+        render();
+        setProgress(i, it.frac, s);
+      }), i);
       it.status = "готово"; it.cls = "done";
     } catch (e) {
       it.status = "ошибка"; it.cls = "err";
       appendResult(`[Ошибка: ${e.message}]`, i);
       setMsg(e.message, true);
     }
+    it.working = false;
+    setProgress(i, 1, "Готово");
     render();
   }
-  busy = false; render();
+  busy = false;
+  setLoading(false);
+  render();
   issueIndex = -1;
   updateIssues();
   if (!msg.classList.contains("err")) {
@@ -188,20 +204,35 @@ startBtn.addEventListener("click", async () => {
   $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-// На телефоне текст сначала только для чтения: нажатие на слово открывает варианты, а не клавиатуру
+// Видимая загрузка: полоса с процентами под кнопкой, тонкая полоса вверху экрана и спиннер на кнопке
+function setLoading(on) {
+  $("progress").hidden = $("topProgress").hidden = !on;
+  startBtn.classList.toggle("loading", on);
+  startBtn.querySelector(".lbl").textContent = on ? "Распознаю…" : "Расшифровать";
+  if (on) setProgress(0, 0, "Подготовка…");
+}
+function setProgress(page, frac, text) {
+  const n = items.length || 1;
+  const pct = Math.min(100, Math.round(((page + Math.min(1, Math.max(0, frac))) / n) * 100));
+  $("pgText").textContent = (n > 1 ? `Страница ${page + 1} из ${n} · ` : "") + text.replace(/…$/, "") + (pct < 100 ? "…" : "");
+  $("pgPct").textContent = pct + "%";
+  $("pgFill").style.width = $("topFill").style.width = pct + "%";
+  $("progress").setAttribute("aria-valuenow", String(pct));
+}
+
 // Текст сначала только для чтения: нажатие на слово открывает варианты, а не клавиатуру.
-// Править вручную — карандашом (на компьютере кнопка над текстом, на телефоне — в нижней панели и в «⋯»)
+// На телефоне править вручную — карандашом в нижней панели и в «⋯»
 function setEditing(on) {
   output.contentEditable = on ? "true" : "false";
   output.classList.toggle("editing", on);
-  for (const b of [$("editBtn"), $("mEdit")]) { b.setAttribute("aria-pressed", String(on)); b.classList.toggle("on", on); }
-  $("editBtn").querySelector(".lbl").textContent = on ? "Готово" : "Править текст";
+  $("mEdit").setAttribute("aria-pressed", String(on)); $("mEdit").classList.toggle("on", on);
   moreMenu.querySelector('[data-act="edit"] .lbl').textContent = on ? "Закончить правку" : "Править текст";
   setMsg(on ? "Режим правки: меняйте текст прямо в поле" : "");
   if (on) { hideSuggest(); output.focus(); }
 }
 const toggleEditing = () => setEditing(output.contentEditable !== "true");
-$("editBtn").addEventListener("click", toggleEditing);
+// На компьютере кнопки нет: текст правится сразу, щелчком в нужное место (варианты слова по щелчку тоже открываются)
+if (!isTouch) { output.contentEditable = "true"; output.classList.add("pc-edit"); }
 $("mEdit").addEventListener("click", toggleEditing);
 
 // Нижняя панель на телефоне: лупа просто переводит к следующему слову на проверку, варианты — по нажатию на слово
@@ -220,7 +251,9 @@ moreMenu.addEventListener("click", (e) => {
   const b = e.target.closest("[data-act]");
   if (!b) return;
   toggleMore(false);
-  if (b.dataset.act === "edit") toggleEditing(); else $(b.dataset.act).click();
+  if (b.dataset.act === "edit") toggleEditing();
+  else if (b.dataset.act === "downloadDocx") { e.stopPropagation(); if (serialize().trim()) toggleDocxMenu(true); else setMsg("Сначала расшифруйте документ", true); }
+  else $(b.dataset.act).click();
 });
 document.addEventListener("click", (e) => { if (!moreMenu.hidden && !moreMenu.contains(e.target)) toggleMore(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !moreMenu.hidden) toggleMore(false); });
@@ -580,10 +613,39 @@ function saveFile(blob, name) {
 $("download").addEventListener("click", () => {
   saveFile(new Blob([serialize()], { type: "text/plain;charset=utf-8" }), "rasshifrovka.txt");
 });
-$("downloadDocx").addEventListener("click", () => {
+// .docx: с пометками, чистовик или оба — выбор в маленьком меню у кнопки (на телефоне — над нижней панелью)
+const docxMenu = $("docxMenu");
+function toggleDocxMenu(open = docxMenu.hidden) {
+  docxMenu.hidden = !open;
+  if (!open) return;
+  hideSuggest();
+  const r = $("downloadDocx").getBoundingClientRect();
+  if (r.width) {
+    // Над кнопкой, если снизу мало места
+    const h = docxMenu.offsetHeight, below = r.bottom + 8 + h < innerHeight;
+    Object.assign(docxMenu.style, { left: Math.min(r.left, innerWidth - docxMenu.offsetWidth - 12) + "px", right: "auto",
+      top: (below ? r.bottom + 8 : r.top - 8 - h) + "px", bottom: "auto" });
+  } else {
+    Object.assign(docxMenu.style, { left: "auto", right: "12px", top: "auto", bottom: "calc(72px + env(safe-area-inset-bottom))" });
+  }
+  docxMenu.querySelector("[data-docx]").focus({ preventScroll: true });
+}
+$("downloadDocx").addEventListener("click", (e) => {
+  e.stopPropagation();
   if (!serialize().trim()) return setMsg("Сначала расшифруйте документ", true);
-  saveFile(makeDocx(serialize(true)), "rasshifrovka.docx");
+  toggleDocxMenu();
 });
+docxMenu.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-docx]");
+  if (!b) return;
+  toggleDocxMenu(false);
+  const base = fileBase(), kind = b.dataset.docx;
+  if (kind !== "clean") saveFile(makeDocx(serialize(true)), `${base} (с пометками).docx`);
+  // Второй файл — с небольшой паузой, иначе браузер может пропустить одно из скачиваний
+  if (kind !== "marked") setTimeout(() => saveFile(makeDocx(cleanCopy(serialize())), `${base} (чистовик).docx`), kind === "both" ? 400 : 0);
+});
+document.addEventListener("click", (e) => { if (!docxMenu.hidden && !docxMenu.contains(e.target)) toggleDocxMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !docxMenu.hidden) toggleDocxMenu(false); });
 
 // ——— Отправка на email ———
 // Адреса и пароль отправки запоминаются в этом браузере (localStorage); если хранилище недоступно — просто не запоминаем
