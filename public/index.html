@@ -178,11 +178,11 @@
   .dlg-msg { min-height: 20px; font-size: 14px; margin: 0 0 12px; color: var(--muted); }
   .dlg-msg.err { color: var(--danger); } .dlg-msg.ok { color: var(--ok); }
   .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-  /* Компьютер: сообщение слева, крупная «Расшифровать» и корзина справа (на телефоне порядок свой — ниже) */
-  .start-row #msg { order: 0; flex: 1; min-width: 0; }
-  .start-row #clear { order: 2; align-self: stretch; aspect-ratio: 1; padding: 0; min-width: 50px; border-radius: 12px; }
+  /* Компьютер: корзина слева, затем сообщение, крупная «Расшифровать» справа (на телефоне порядок свой — ниже) */
+  .start-row #msg { order: 1; flex: 1; min-width: 0; }
+  .start-row #clear { order: 0; align-self: stretch; aspect-ratio: 1; padding: 0; min-width: 50px; border-radius: 12px; }
   .start-row #clear .ic { width: 22px; height: 22px; }
-  .start-row #start { order: 1; padding: 14px 30px; font-size: 17px; border-radius: 12px; }
+  .start-row #start { order: 2; padding: 14px 30px; font-size: 17px; border-radius: 12px; }
   .start-row #start .ic { width: 21px; height: 21px; }
   .act.c-red:disabled { opacity: .7; }   /* красная видна и когда неактивна */
   /* Телефон и компьютер: свои элементы управления */
