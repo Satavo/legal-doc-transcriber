@@ -230,21 +230,22 @@
     .act, .act .ic, #files li, .mbar, .mbar button { transition: none !important; animation: none !important; }
     .ripple { display: none; }
   }
-  .mbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgba(0,0,0,.12); }
+  .mbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgba(0,0,0,.12); }
   .mbar { animation: slideUp .3s ease-out; }
-  .more-menu { position: fixed; right: 12px; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: rise .18s ease-out; }
+  .more-menu { position: fixed; right: 12px; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: rise .18s ease-out; }
   .more-menu[hidden] { display: none; }
   .more-menu .act { justify-content: flex-start; min-height: 46px; }
-  .mbar button { min-height: 48px; min-width: 48px; border-radius: 14px; font: 600 16px/1 system-ui, sans-serif; padding: 0 14px; flex: none; white-space: nowrap; }
+  .mbar button { min-height: 40px; min-width: 42px; border-radius: 12px; font: 600 15px/1 system-ui, sans-serif; padding: 0 12px; flex: none; white-space: nowrap; }
+  .mbar button .ic { width: 17px; height: 17px; }
   .mbar button.grow { flex: 1; min-width: 0; }
   .mbar button.grow .lbl { overflow: hidden; text-overflow: ellipsis; }
   @media (max-width: 420px) {
-    .mbar { gap: 6px; padding-left: 10px; padding-right: 10px; }
+    .mbar { gap: 5px; padding-left: 8px; padding-right: 8px; }
     .mbar button { padding: 0 10px; }
     .mbar #mNext .ic { display: none; }   /* на узком экране место важнее иконки */
   }
   @media (max-width: 899px) {
-    main { padding: 16px 12px 96px; }
+    main { padding: 16px 12px 80px; }
     h1 { font-size: 22px; }
     .sub { margin-bottom: 14px; font-size: 15px; }
     .card { padding: 14px; border-radius: 12px; }

@@ -801,7 +801,7 @@ function placeMenu(menu, anchor) {
     Object.assign(menu.style, { left: Math.max(12, Math.min(r.left, innerWidth - menu.offsetWidth - 12)) + "px", right: "auto",
       top: (below ? r.bottom + 8 : r.top - 8 - h) + "px", bottom: "auto" });
   } else {
-    Object.assign(menu.style, { left: "auto", right: "12px", top: "auto", bottom: "calc(72px + env(safe-area-inset-bottom))" });
+    Object.assign(menu.style, { left: "auto", right: "12px", top: "auto", bottom: "calc(60px + env(safe-area-inset-bottom))" });
   }
   menu.querySelector("button").focus({ preventScroll: true });
 }
