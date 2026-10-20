@@ -51,6 +51,9 @@
   button:disabled { opacity: .5; cursor: default; }
   #output { width: 100%; min-width: 0; height: 75vh; min-height: 420px; overflow: auto; font: 16px/1.65 "Times New Roman", Georgia, serif; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
   #output .ln { border-radius: 4px; padding: 0 4px; margin: 0 -4px; }
+  /* Тап по тексту: без серой вспышки, без увеличения двойным тапом и выделения слова долгим нажатием */
+  #output { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  #output[contenteditable="false"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #output .ln.active { background: color-mix(in srgb, var(--accent) 9%, transparent); }
   #output .ln.page-head { color: var(--muted); font: 600 13px/2.2 system-ui, sans-serif; letter-spacing: .02em; }
   .w-current { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -121,6 +124,7 @@
     .mbar.touch-only { display: flex !important; }
     .mbar[hidden] { display: none !important; }
     .mouse-only { display: none !important; }
+    .hl { transition: none; }   /* подсветка на фото встаёт сразу, без «переезда» */
   }
   .pick-row { gap: 10px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
@@ -177,8 +181,14 @@
     #files .icon-btn { width: 40px; height: 40px; }
     .review-bar .toggle { margin-left: 0; }
     /* Варианты слова — шторкой снизу, крупными кнопками */
-    #suggest { position: fixed; left: 0 !important; right: 0; bottom: 0; top: auto !important; max-width: none; min-width: 0; border-radius: 16px 16px 0 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); max-height: 60vh; overflow: auto; z-index: 6; font-size: 17px; }
-    #suggest button { padding: 12px 10px; }
+    /* Компактная шторка: варианты «таблетками» в пару строк, а не списком во всю высоту */
+    #suggest { position: fixed; left: 0 !important; right: 0; bottom: 0; top: auto !important; max-width: none; min-width: 0; border-radius: 16px 16px 0 0;
+      padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); max-height: 34vh; overflow: auto; z-index: 6; font-size: 16px;
+      display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; animation: rise .15s ease-out; }
+    #suggest[hidden] { display: none; }
+    #suggest .title { width: 100%; padding: 0 2px 2px; font-size: 12px; }
+    #suggest button { width: auto; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); line-height: 1.2; }
+    #suggest button.keep { margin: 0; border-top: 1px solid var(--border); border-radius: 999px; font-size: 13px; padding: 6px 10px; }
     #emailDlg { margin: auto auto 0; width: 100%; max-width: none; border-radius: 16px 16px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
     #emailDlg .dlg-actions button { flex: 1; min-height: 46px; }
   }

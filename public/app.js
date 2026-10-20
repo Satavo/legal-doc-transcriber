@@ -357,7 +357,8 @@ function scrollPhotoTo(box) {
   const y0 = box[1] * scale, y1 = box[3] * scale, x0 = box[0] * scale, x1 = box[2] * scale;
   const v = photoScroll;
   const visible = y0 >= v.scrollTop + 10 && y1 <= v.scrollTop + v.clientHeight - 10 && x0 >= v.scrollLeft && x1 <= v.scrollLeft + v.clientWidth;
-  if (!visible) v.scrollTo({ top: (y0 + y1) / 2 - v.clientHeight / 2, left: Math.max(0, (x0 + x1) / 2 - v.clientWidth / 2), behavior: "smooth" });
+  // На телефоне без «проезда»: фото сразу встаёт на нужную строку, чтобы ничего не дёргалось при тапе
+  if (!visible) v.scrollTo({ top: (y0 + y1) / 2 - v.clientHeight / 2, left: Math.max(0, (x0 + x1) / 2 - v.clientWidth / 2), behavior: isTouch ? "auto" : "smooth" });
 }
 
 // Смещение точки (узел, смещение) от начала текста строки
