@@ -222,7 +222,35 @@ function setEditing(on) {
   $("mEdit").setAttribute("aria-pressed", String(on)); $("mEdit").classList.toggle("on", on);
   moreMenu.querySelector('[data-act="edit"] .lbl').textContent = on ? "Закончить правку" : "Править текст";
   setMsg(on ? "Режим правки: меняйте текст прямо в поле" : "");
-  if (on) { hideSuggest(); output.focus(); }
+  if (on) { hideSuggest(); output.focus(); placeCaretAtLastTap(); }
+}
+
+// Место последнего нажатия в тексте (строка и позиция в ней): карандаш открывает правку именно там.
+// Храним позицию в строке, а не узел — после выбора варианта слова узел заменяется
+let lastTap = null;
+function rememberTap(e) {
+  const lineDiv = e.target.closest?.(".ln");
+  if (!lineDiv || !output.contains(lineDiv)) return;
+  const caret = document.caretPositionFromPoint?.(e.clientX, e.clientY);
+  const range = caret ? null : document.caretRangeFromPoint?.(e.clientX, e.clientY);
+  const node = caret ? caret.offsetNode : range?.startContainer, off = caret ? caret.offset : range?.startOffset;
+  if (node && lineDiv.contains(node)) lastTap = { line: lineDiv, off: offsetInLine(lineDiv, node, off) };
+}
+function placeCaretAtLastTap() {
+  if (!lastTap || !output.contains(lastTap.line)) return;
+  let left = lastTap.off, target = null, at = 0;
+  const walker = document.createTreeWalker(lastTap.line, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    target = n; at = Math.min(left, n.data.length);
+    if (left <= n.data.length) break;
+    left -= n.data.length;
+  }
+  const sel = getSelection();
+  if (target) sel.collapse(target, at); else sel.collapse(lastTap.line, 0);
+  // Курсор — в видимую часть, ниже закреплённого фото и выше клавиатуры
+  const r = sel.getRangeAt(0).getBoundingClientRect(), box = r.height ? r : lastTap.line.getBoundingClientRect();
+  const view = window.visualViewport?.height || innerHeight;
+  if (box.top < view * 0.35 || box.bottom > view * 0.6) window.scrollBy({ top: box.top - view * 0.45 });
 }
 const toggleEditing = () => setEditing(output.contentEditable !== "true");
 // На компьютере кнопки нет: текст правится сразу, щелчком в нужное место (варианты слова по щелчку тоже открываются)
@@ -589,6 +617,7 @@ function resolveWord(span, value) {
 // Варианты слова открываются только по нажатию (клик или тап), а не при наведении
 output.addEventListener("click", (e) => {
   highlightAt(e);
+  rememberTap(e);
   const span = e.target.closest(".w-unk, .w-fix, .w-guess, .w-name");
   if (span) showSuggest(span, true, { x: e.clientX, y: e.clientY }); else hideSuggest();
 });
