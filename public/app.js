@@ -48,7 +48,7 @@ document.addEventListener("paste", (e) => { if (e.clipboardData?.files.length) a
 function addFiles(fileList) {
   const added = [...fileList].filter((f) => f.type.startsWith("image/"));
   added.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  for (const file of added) items.push({ file, url: URL.createObjectURL(file), status: "" });
+  for (const file of added) items.push({ file, url: URL.createObjectURL(file), status: "", fresh: true });
   render();
 }
 
@@ -74,11 +74,8 @@ function render() {
     del.innerHTML = TRASH_ICON;
     btns.append(del);
     li.append(thumb, info, btns);
-    if (it.working) {
-      li.classList.add("busy");
-      li.style.setProperty("--p", Math.round((it.frac || 0) * 100) + "%");
-      info.lastChild.classList.add("working");
-    }
+    if (it.working) { li.classList.add("busy"); info.lastChild.classList.add("working"); }
+    if (it.fresh) { li.classList.add("new"); it.fresh = false; }
     // На компьютере порядок страниц можно менять перетаскиванием
     if (!isTouch && items.length > 1 && !busy) {
       li.draggable = true;
@@ -186,16 +183,10 @@ startBtn.addEventListener("click", async () => {
   render();
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
-    it.status = "обработка…"; it.working = true; it.frac = 0; render();
-    setProgress(i, 0, "Подготовка…");
+    it.status = "обработка…"; it.working = true; render();
     if (items.length > 1) appendResult(`===== Страница ${i + 1} =====`, i, true);
     try {
-      appendResult(await recognize(it.file, (s, frac) => {
-        it.status = s;
-        if (frac != null) it.frac = frac;
-        render();
-        setProgress(i, it.frac, s);
-      }), i);
+      appendResult(await recognize(it.file, (s) => { it.status = s; render(); }), i);
       it.status = "готово"; it.cls = "done";
     } catch (e) {
       it.status = "ошибка"; it.cls = "err";
@@ -203,18 +194,13 @@ startBtn.addEventListener("click", async () => {
       setMsg(e.message, true);
     }
     it.working = false;
-    setProgress(i, 1, "Готово");
     render();
   }
   busy = false;
   setLoading(false);
   render();
   issueIndex = -1;
-  updateIssues();
-  if (!msg.classList.contains("err")) {
-    const n = issues().length;
-    setMsg(n ? `Готово · слов на проверку: ${n}` : "Готово");
-  }
+  updateIssues();   // сколько слов на проверку — видно над текстом и в нижней панели, под кнопками только ошибки
   // Готовый текст — с начала, фото первой страницы
   syncPaused = Date.now() + 1200;
   output.scrollTop = 0;
@@ -222,20 +208,10 @@ startBtn.addEventListener("click", async () => {
   $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-// Видимая загрузка: полоса с процентами под кнопкой, тонкая полоса вверху экрана и спиннер на кнопке
+// Во время работы кнопка показывает «Распознаю…», а кружок загрузки — у фото, которое обрабатывается
 function setLoading(on) {
-  $("progress").hidden = $("topProgress").hidden = !on;
   startBtn.classList.toggle("loading", on);
   startBtn.querySelector(".lbl").textContent = on ? "Распознаю…" : "Расшифровать";
-  if (on) setProgress(0, 0, "Подготовка…");
-}
-function setProgress(page, frac, text) {
-  const n = items.length || 1;
-  const pct = Math.min(100, Math.round(((page + Math.min(1, Math.max(0, frac))) / n) * 100));
-  $("pgText").textContent = (n > 1 ? `Страница ${page + 1} из ${n} · ` : "") + text.replace(/…$/, "") + (pct < 100 ? "…" : "");
-  $("pgPct").textContent = pct + "%";
-  $("pgFill").style.width = $("topFill").style.width = pct + "%";
-  $("progress").setAttribute("aria-valuenow", String(pct));
 }
 
 // Текст сначала только для чтения: нажатие на слово открывает варианты, а не клавиатуру.
@@ -606,7 +582,6 @@ function resolveWord(span, value) {
   output.normalize();
   hideSuggest();
   const n = issues().length;
-  setMsg(n ? `Слов на проверку: ${n}` : "Все слова проверены");
   updateIssues();
   if (wasCurrent && n) goIssue(1);
 }
@@ -646,22 +621,43 @@ $("download").addEventListener("click", () => {
   saveFile(new Blob([serialize()], { type: "text/plain;charset=utf-8" }), "rasshifrovka.txt");
 });
 // .docx: с пометками, чистовик или оба — выбор в маленьком меню у кнопки (на телефоне — над нижней панелью)
+// Всплывающее меню у кнопки: под ней, а если снизу мало места — над ней. Кнопка скрыта (телефон) — над нижней панелью
+function placeMenu(menu, anchor) {
+  const r = anchor.getBoundingClientRect();
+  if (r.width) {
+    const h = menu.offsetHeight, below = r.bottom + 8 + h < innerHeight;
+    Object.assign(menu.style, { left: Math.max(12, Math.min(r.left, innerWidth - menu.offsetWidth - 12)) + "px", right: "auto",
+      top: (below ? r.bottom + 8 : r.top - 8 - h) + "px", bottom: "auto" });
+  } else {
+    Object.assign(menu.style, { left: "auto", right: "12px", top: "auto", bottom: "calc(72px + env(safe-area-inset-bottom))" });
+  }
+  menu.querySelector("button").focus({ preventScroll: true });
+}
 const docxMenu = $("docxMenu");
 function toggleDocxMenu(open = docxMenu.hidden) {
   docxMenu.hidden = !open;
   if (!open) return;
-  hideSuggest();
-  const r = $("downloadDocx").getBoundingClientRect();
-  if (r.width) {
-    // Над кнопкой, если снизу мало места
-    const h = docxMenu.offsetHeight, below = r.bottom + 8 + h < innerHeight;
-    Object.assign(docxMenu.style, { left: Math.min(r.left, innerWidth - docxMenu.offsetWidth - 12) + "px", right: "auto",
-      top: (below ? r.bottom + 8 : r.top - 8 - h) + "px", bottom: "auto" });
-  } else {
-    Object.assign(docxMenu.style, { left: "auto", right: "12px", top: "auto", bottom: "calc(72px + env(safe-area-inset-bottom))" });
-  }
-  docxMenu.querySelector("[data-docx]").focus({ preventScroll: true });
+  hideSuggest(); togglePcMore(false);
+  placeMenu(docxMenu, $("downloadDocx"));
 }
+// «⋯» под текстом на компьютере: копировать и скачать .txt
+const pcMoreMenu = $("pcMoreMenu");
+function togglePcMore(open = pcMoreMenu.hidden) {
+  pcMoreMenu.hidden = !open;
+  $("pcMore").setAttribute("aria-expanded", String(open));
+  if (!open) return;
+  hideSuggest(); toggleDocxMenu(false);
+  placeMenu(pcMoreMenu, $("pcMore"));
+}
+$("pcMore").addEventListener("click", (e) => { e.stopPropagation(); togglePcMore(); });
+pcMoreMenu.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pc]");
+  if (!b) return;
+  togglePcMore(false);
+  $(b.dataset.pc).click();
+});
+document.addEventListener("click", (e) => { if (!pcMoreMenu.hidden && !pcMoreMenu.contains(e.target)) togglePcMore(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pcMoreMenu.hidden) togglePcMore(false); });
 $("downloadDocx").addEventListener("click", (e) => {
   e.stopPropagation();
   if (!serialize().trim()) return setMsg("Сначала расшифруйте документ", true);

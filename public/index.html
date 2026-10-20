@@ -36,7 +36,8 @@
   #drop strong { display: block; font-size: 18px; margin-bottom: 4px; }
   #drop span { color: var(--muted); font-size: 14px; }
   #files { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
-  #files li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; min-width: 0; animation: rise .25s ease-out; }
+  #files li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+  #files li.new { animation: rise .25s ease-out; }   /* только у только что добавленных — при обновлениях строки не мигают */
   #files img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; background: var(--bg); }
   #files .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   #files .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -49,36 +50,21 @@
   #files li.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
   #files li.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
   #files .status.done { color: var(--ok); } #files .status.err { color: var(--danger); }
-  /* Страница, которая распознаётся сейчас: рамка, заливка по ходу работы и вращающийся значок */
-  #files li.busy { border-color: var(--accent); background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent) var(--p, 0%), transparent var(--p, 0%)); }
+  /* Страница, которая распознаётся сейчас: рамка и вращающийся значок */
+  #files li.busy { border-color: var(--accent); }
   #files .status.working { color: var(--accent); display: flex; align-items: center; gap: 6px; }
   #files .status.working::before { content: ""; width: 12px; height: 12px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
-  /* Общий прогресс расшифровки */
-  .spinner { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .8s linear infinite; }
-  .progress { margin-top: 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent); animation: rise .25s ease-out; }
-  .progress[hidden] { display: none; }
-  .pg-head { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-  #pgText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #pgPct { font-variant-numeric: tabular-nums; color: var(--accent); }
-  .pg-bar { margin-top: 10px; height: 8px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--accent) 15%, transparent); }
-  .pg-bar > div, .top-progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #22d3ee)); transition: width .35s ease;
-    background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
-  .pg-bar > div { border-radius: 99px; }
-  .top-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 20; pointer-events: none; }
-  .top-progress[hidden] { display: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
   /* Кнопка «Расшифровать» во время работы */
   .act.loading:disabled { opacity: 1; cursor: progress; }
-  .act.loading .ic { display: none; }
-  .act.loading::before { content: ""; width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .8s linear infinite; }
   /* Выбор варианта .docx */
   .docx-menu { position: fixed; z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: rise .18s ease-out; min-width: 230px; }
   .docx-menu[hidden] { display: none; }
   .docx-menu .act { justify-content: flex-start; min-height: 44px; }
   .docx-menu .act small { font-weight: 400; opacity: .75; margin-left: auto; padding-left: 10px; }
   .docx-menu .ttl { font-size: 13px; color: var(--muted); padding: 2px 4px 4px; }
-  .actions-row #emailBtn { margin-left: auto; }
+  .actions-row #pcMore { margin-left: auto; padding: 10px 12px; }   /* «⋯», .docx и отправка — вместе справа */
+  .act[hidden] { display: none; }
   .icon-btn { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; flex: none; }
   .icon-btn.del { color: #fff; border-color: transparent; background: linear-gradient(135deg, #e5484d, #b8363a); display: inline-flex; align-items: center; justify-content: center; transition: filter .2s, transform .14s; }
   .icon-btn.del svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -309,10 +295,6 @@
       <button class="act solid c-red" id="clear" disabled title="Очистить" aria-label="Очистить"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
       <span id="msg"></span>
     </div>
-    <div class="progress" id="progress" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="pgText">
-      <div class="pg-head"><span class="spinner" aria-hidden="true"></span><span id="pgText">Подготовка…</span><span id="pgPct">0%</span></div>
-      <div class="pg-bar"><div id="pgFill"></div></div>
-    </div>
     <p class="hint">Страницы обрабатываются по порядку сверху вниз — порядок можно поменять стрелками.</p>
   </section>
 
@@ -348,9 +330,11 @@
       <div id="output" contenteditable="false" spellcheck="false" role="textbox" aria-multiline="true" data-placeholder="Здесь появится расшифровка…"></div>
     </div>
     <div class="row actions-row mouse-only">
-      <button class="act c-sky" id="copy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать</button>
+      <!-- Кнопки «Копировать» и «Скачать .txt» спрятаны: на компьютере они в меню «⋯», на телефоне — в «⋯» нижней панели -->
+      <button class="act c-sky" id="copy" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать</button>
+      <button class="act c-slate" id="download" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
+      <button class="act c-slate" id="pcMore" type="button" aria-label="Ещё: копировать, скачать .txt" title="Ещё" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
       <button class="act c-word" id="downloadDocx"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
-      <button class="act c-slate" id="download"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
       <button class="act solid c-green" id="emailBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Отправить на email</button>
     </div>
     <!-- Легенда пометок -->
@@ -381,6 +365,12 @@
   <button type="button" class="act c-slate" data-act="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
 </div>
 
+<!-- Меню «⋯» под текстом на компьютере -->
+<div class="docx-menu" id="pcMoreMenu" role="menu" hidden>
+  <button type="button" class="act c-sky" data-pc="copy" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать текст</button>
+  <button type="button" class="act c-slate" data-pc="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
+</div>
+
 <!-- Какой .docx скачать -->
 <div class="docx-menu" id="docxMenu" role="menu" hidden>
   <div class="ttl">Скачать .docx</div>
@@ -388,8 +378,6 @@
   <button type="button" class="act c-word" data-docx="clean" role="menuitem">Чистовик<small>без пометок</small></button>
   <button type="button" class="act solid c-word" data-docx="both" role="menuitem">Оба файла</button>
 </div>
-
-<div class="top-progress" id="topProgress" hidden><div id="topFill"></div></div>
 
 <div id="suggest" hidden role="menu"></div>
 
