@@ -63,7 +63,7 @@
   .docx-menu .act { justify-content: flex-start; min-height: 44px; }
   .docx-menu .act small { font-weight: 400; opacity: .75; margin-left: auto; padding-left: 10px; }
   .docx-menu .ttl { font-size: 13px; color: var(--muted); padding: 2px 4px 4px; }
-  .actions-row #pcMore { margin-left: auto; padding: 10px 12px; }   /* «⋯», .docx и отправка — вместе справа */
+  .actions-row #pcMore { margin-left: auto; align-self: stretch; padding: 0 16px; }   /* «⋯», .docx и отправка — вместе справа */
   .act[hidden] { display: none; }
   .icon-btn { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; flex: none; }
   .icon-btn.del { color: #fff; border-color: transparent; background: linear-gradient(135deg, #e5484d, #b8363a); display: inline-flex; align-items: center; justify-content: center; transition: filter .2s, transform .14s; }
@@ -120,7 +120,8 @@
   .page-tab img { width: 26px; height: 26px; object-fit: cover; border-radius: 50%; }
   .page-tab:active { transform: scale(.95); }
   .page-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-  .photo-scroll { flex: 1; min-height: 0; overflow: auto; position: relative; }
+  .photo-scroll { flex: 1; min-height: 0; overflow: auto; position: relative; touch-action: pan-x pan-y; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; }
+  @media (hover: hover) { .photo-scroll { cursor: grab; } .photo-scroll.panning { cursor: grabbing; } }
   .photo-wrap { position: relative; width: 100%; }
   .photo-wrap img { display: block; width: 100%; height: auto; }
   .photo-empty { color: var(--muted); font-size: 14px; padding: 24px; margin: 0; }
@@ -267,9 +268,10 @@
   #viewer .bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #viewer .bar button { border: 1px solid rgba(255,255,255,.3); background: transparent; color: #fff; border-radius: 8px; min-width: 36px; height: 36px; font: inherit; cursor: pointer; }
   #viewer .bar button:disabled { opacity: .3; cursor: default; }
-  #viewer .stage { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 0 16px 16px; }
-  #viewer .stage img { margin: auto; max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; background: #fff; }
-  #viewer .stage.zoomed img { max-width: none; max-height: none; cursor: zoom-out; }
+  #viewer .stage { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 0 16px 16px; touch-action: pan-x pan-y; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; }
+  @media (hover: hover) { #viewer .stage.zoomed { cursor: grab; } #viewer .stage.panning { cursor: grabbing; } }
+  #viewer .stage img { margin: auto; max-width: 100%; max-height: 100%; object-fit: contain; background: #fff; }
+  #viewer .stage.zoomed img { max-width: none; max-height: none; flex: none; }
 </style>
 </head>
 <body>
@@ -359,7 +361,6 @@
 
 <!-- Меню «⋯» нижней панели -->
 <div class="more-menu" id="moreMenu" role="menu" hidden>
-  <button type="button" class="act c-violet" data-act="edit" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><span class="lbl">Править текст</span></button>
   <button type="button" class="act c-sky" data-act="copy" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать текст</button>
   <button type="button" class="act c-word" data-act="downloadDocx" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
   <button type="button" class="act c-slate" data-act="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>

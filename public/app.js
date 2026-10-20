@@ -131,17 +131,35 @@ function openViewer(i) {
   $("viewerTitle").textContent = `${i + 1} из ${items.length} · ${items[i].file.name}`;
   $("viewerPrev").disabled = i === 0;
   $("viewerNext").disabled = i === items.length - 1;
-  stage.classList.remove("zoomed");
+  setViewerZoom(1);
   viewer.hidden = false;
   document.body.style.overflow = "hidden";
 }
 function closeViewer() { viewer.hidden = true; document.body.style.overflow = ""; }
-const toggleZoom = () => stage.classList.toggle("zoomed");
+// Масштаб в полноэкранном просмотре: 1 — фото целиком, больше — крупнее, с прокруткой
+let viewerZoom = 1, viewerFitW = 0;
+function setViewerZoom(z, x, y) {
+  z = Math.min(6, Math.max(1, z));
+  if (viewerZoom === 1) viewerFitW = viewerImg.getBoundingClientRect().width || viewerFitW;
+  const r = stage.getBoundingClientRect();
+  const ox = (x ?? r.left + r.width / 2) - r.left, oy = (y ?? r.top + r.height / 2) - r.top;
+  const ir = viewerImg.getBoundingClientRect();
+  const fx = (x ?? ir.left + ir.width / 2) - ir.left, fy = (y ?? ir.top + ir.height / 2) - ir.top;
+  const relX = ir.width ? fx / ir.width : 0.5, relY = ir.height ? fy / ir.height : 0.5;
+  viewerZoom = z;
+  stage.classList.toggle("zoomed", z > 1);
+  viewerImg.style.width = z > 1 && viewerFitW ? viewerFitW * z + "px" : "";
+  if (z > 1) {
+    stage.scrollLeft = viewerImg.offsetLeft + relX * viewerImg.offsetWidth - ox;
+    stage.scrollTop = viewerImg.offsetTop + relY * viewerImg.offsetHeight - oy;
+  }
+}
+const toggleZoom = () => setViewerZoom(viewerZoom > 1.2 ? 1 : 2.5);
+attachPanZoom(stage, () => viewerZoom, setViewerZoom);
 $("viewerClose").addEventListener("click", closeViewer);
 $("viewerPrev").addEventListener("click", () => openViewer(viewIndex - 1));
 $("viewerNext").addEventListener("click", () => openViewer(viewIndex + 1));
 $("viewerZoom").addEventListener("click", toggleZoom);
-viewerImg.addEventListener("click", toggleZoom);
 stage.addEventListener("click", (e) => { if (e.target === stage) closeViewer(); });
 document.addEventListener("keydown", (e) => {
   if (viewer.hidden) return;
@@ -220,7 +238,6 @@ function setEditing(on) {
   output.contentEditable = on ? "true" : "false";
   output.classList.toggle("editing", on);
   $("mEdit").setAttribute("aria-pressed", String(on)); $("mEdit").classList.toggle("on", on);
-  moreMenu.querySelector('[data-act="edit"] .lbl').textContent = on ? "Закончить правку" : "Править текст";
   setMsg(on ? "Режим правки: меняйте текст прямо в поле" : "");
   if (on) { hideSuggest(); output.focus(); placeCaretAtLastTap(); }
 }
@@ -273,8 +290,7 @@ moreMenu.addEventListener("click", (e) => {
   const b = e.target.closest("[data-act]");
   if (!b) return;
   toggleMore(false);
-  if (b.dataset.act === "edit") toggleEditing();
-  else if (b.dataset.act === "downloadDocx") { e.stopPropagation(); if (serialize().trim()) toggleDocxMenu(true); else setMsg("Сначала расшифруйте документ", true); }
+  if (b.dataset.act === "downloadDocx") { e.stopPropagation(); if (serialize().trim()) toggleDocxMenu(true); else setMsg("Сначала расшифруйте документ", true); }
   else $(b.dataset.act).click();
 });
 document.addEventListener("click", (e) => { if (!moreMenu.hidden && !moreMenu.contains(e.target)) toggleMore(false); });
@@ -414,12 +430,78 @@ function showPage(i) {
   });
 }
 
-function setZoom(z) {
-  const center = photoScroll.scrollTop / Math.max(1, photoWrap.offsetHeight);
-  zoom = Math.min(4, Math.max(1, z));
-  photoWrap.style.width = zoom * 100 + "%";
-  photoScroll.scrollTop = center * photoWrap.offsetHeight;
+// Жесты на фото (и в окне сверки, и в полноэкранном просмотре).
+// Телефон: щипок двумя пальцами — масштаб, одним пальцем — сдвиг, двойной тап — приблизить/вернуть.
+// Компьютер: перетаскивание мышью, Ctrl + колесо — масштаб у курсора, двойной щелчок — приблизить/вернуть
+function attachPanZoom(scroller, getZoom, setZoomAt) {
+  scroller.querySelectorAll("img").forEach((img) => { img.draggable = false; });
+  const toggle = (x, y) => setZoomAt(getZoom() > 1.2 ? 1 : 2.5, x, y);
+  let pinch = null, lastTap = null;
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  scroller.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) { pinch = { d: dist(e.touches), z: getZoom() }; lastTap = null; }
+  }, { passive: true });
+  scroller.addEventListener("touchmove", (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();   // иначе браузер масштабирует всю страницу
+    const [p, q] = e.touches;
+    setZoomAt(pinch.z * dist(e.touches) / pinch.d, (p.clientX + q.clientX) / 2, (p.clientY + q.clientY) / 2);
+  }, { passive: false });
+  scroller.addEventListener("touchend", (e) => {
+    if (e.touches.length >= 2) return;
+    if (pinch) { pinch = null; return; }
+    // Двойной тап: два коротких касания рядом в пределах 300 мс
+    const t = e.changedTouches[0], now = Date.now();
+    if (lastTap && now - lastTap.at < 300 && Math.hypot(t.clientX - lastTap.x, t.clientY - lastTap.y) < 30) {
+      e.preventDefault(); toggle(t.clientX, t.clientY); lastTap = null; scroller.dataset.tapZoom = now;
+    } else lastTap = { at: now, x: t.clientX, y: t.clientY };
+  });
+  scroller.addEventListener("dblclick", (e) => {
+    e.preventDefault();
+    if (Date.now() - (+scroller.dataset.tapZoom || 0) > 500) toggle(e.clientX, e.clientY);   // на телефоне уже сработал двойной тап
+  });
+  scroller.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;   // обычное колесо прокручивает фото
+    e.preventDefault();
+    setZoomAt(getZoom() * Math.exp(-e.deltaY * 0.0025), e.clientX, e.clientY);
+  }, { passive: false });
+  let pan = null;
+  scroller.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    pan = { x: e.clientX, y: e.clientY, l: scroller.scrollLeft, t: scroller.scrollTop, id: e.pointerId, moved: false };
+    scroller.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  scroller.addEventListener("pointermove", (e) => {
+    if (!pan || e.pointerId !== pan.id) return;
+    const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+    if (!pan.moved && Math.hypot(dx, dy) > 4) { pan.moved = true; scroller.classList.add("panning"); }
+    scroller.scrollLeft = pan.l - dx;
+    scroller.scrollTop = pan.t - dy;
+  });
+  const endPan = () => {
+    // После перетаскивания щелчок не считается (например, не закрывает полноэкранный просмотр)
+    if (pan?.moved) scroller.addEventListener("click", (e) => e.stopPropagation(), { capture: true, once: true });
+    pan = null; scroller.classList.remove("panning");
+  };
+  scroller.addEventListener("pointerup", endPan);
+  scroller.addEventListener("pointercancel", endPan);
 }
+
+// Масштаб с опорной точкой: точка фото под (x, y) остаётся на месте; без точки — центр окна
+function setZoom(z, x, y) {
+  const r = photoScroll.getBoundingClientRect();
+  const ox = (x ?? r.left + r.width / 2) - r.left, oy = (y ?? r.top + r.height / 2) - r.top;
+  const fx = (photoScroll.scrollLeft + ox) / Math.max(1, photoWrap.offsetWidth);
+  const fy = (photoScroll.scrollTop + oy) / Math.max(1, photoWrap.offsetHeight);
+  zoom = Math.min(5, Math.max(1, z));
+  photoWrap.style.width = zoom * 100 + "%";
+  photoScroll.scrollLeft = fx * photoWrap.offsetWidth - ox;
+  photoScroll.scrollTop = fy * photoWrap.offsetHeight - oy;
+  photoScroll.classList.toggle("zoomed", zoom > 1);
+}
+
+attachPanZoom(photoScroll, () => zoom, setZoom);
 $("zoomIn").addEventListener("click", () => setZoom(zoom * 1.5));
 $("zoomOut").addEventListener("click", () => setZoom(zoom / 1.5));
 $("zoomFit").addEventListener("click", () => setZoom(1));
@@ -580,7 +662,7 @@ function showSuggest(span, pinned = false, at = null) {
   const alts = span.dataset.alts ? span.dataset.alts.split("|") : [];
   const title = document.createElement("div");
   title.className = "title";
-  title.textContent = isName ? "Фамилия или отчество — сверьте с фото, исправить можно прямо в тексте" : isFix ? `Исправлено по словарю. На фото прочитано: «${span.dataset.orig}»`
+  title.textContent = isName ? (alts.length ? "Фамилия или отчество — сверьте с фото. Возможно:" : "Фамилия или отчество — сверьте с фото, исправить можно прямо в тексте") : isFix ? `Исправлено по словарю. На фото прочитано: «${span.dataset.orig}»`
     : isGuess ? (alts.length ? "Слово обрезано краем — часть букв угадана. Возможно:" : "Слово обрезано краем, вариантов нет — сверьте с фото")
     : alts.length ? "Не уверен в слове. Возможно:" : "Не уверен в слове, вариантов нет — сверьте с фото";
   suggest.append(title);

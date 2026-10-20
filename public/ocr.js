@@ -670,8 +670,17 @@ function polishLine(line, words, vocab, info) {
     // Фамилии и отчества помечаем на проверку: ошибка в них в юридическом тексте критична
     // Имя перед отчеством («Анна Сергеевна») — тоже часть ФИО
     const firstName = /^\s*\p{Lu}\p{Ll}+(?:ович|евич|овн|евн|ичн)/u.test(after);
-    return checked === w && name && personName(w, initials || firstName, words) ? mark(w, "name", []) : checked;
+    return checked === w && name && personName(w, initials || firstName, words) ? mark(w, "name", nameVariants(w, info.get(norm(w)))) : checked;
   }))).join(""));
+}
+
+// Варианты для фамилии: буквы, в которых модель сомневалась, заменены на её второй выбор, а первая буква —
+// на похожие по начертанию (её чаще всего перекрывает печать или подпись: «Журиленко» → «Куриленко»)
+const LOOKALIKE = { Ж: "К", К: "Ж", Х: "Ж", Н: "П", П: "Н", И: "Н", Ш: "Щ", Щ: "Ш", Ц: "Щ", З: "Э", Э: "З", В: "Б", Б: "В", О: "С", С: "О", Л: "Д", Д: "Л", Г: "Т", Т: "Г" };
+function nameVariants(w, meta) {
+  const out = ctcVariants(w, meta);
+  if (LOOKALIKE[w[0]]) out.push(LOOKALIKE[w[0]] + w.slice(1));
+  return uniq(out).filter((v) => v !== w).slice(0, 4);
 }
 
 // Похоже на фамилию или отчество: рядом инициалы («Иванов И.И.») или типичное окончание
