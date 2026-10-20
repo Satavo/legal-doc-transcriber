@@ -132,7 +132,8 @@
   .hl-word { background: rgba(255, 196, 0, .35); outline: 2px solid #e0a800; }
   @media (max-width: 899px) {
     .review { grid-template-columns: minmax(0, 1fr); }
-    .photo-pane { height: 34vh; height: 34dvh; min-height: 220px; position: sticky; top: 0; z-index: 2; }
+    /* svh — высота экрана с развёрнутой адресной строкой: не меняется, когда браузер прячет и показывает строку при прокрутке */
+    .photo-pane { height: 34vh; height: 34svh; min-height: 220px; position: sticky; top: 0; z-index: 2; }
     /* Открыта клавиатура: фото компактнее (доля видимой части экрана), а курсор браузер показывает под фото, не за ним */
     html.kb-open { scroll-padding-top: calc(var(--vvh, 100dvh) * .3 + 16px); }
     html.kb-open .photo-pane { height: calc(var(--vvh, 100dvh) * .3); min-height: 110px; top: var(--vvtop, 0px); }
@@ -253,7 +254,7 @@
     /* Варианты слова — шторкой снизу, крупными кнопками */
     /* Компактная шторка: варианты «таблетками» в пару строк, а не списком во всю высоту */
     #suggest { position: fixed; left: 0 !important; right: 0; bottom: 0; top: auto !important; max-width: none; min-width: 0; border-radius: 16px 16px 0 0;
-      padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); max-height: 34vh; overflow: auto; z-index: 6; font-size: 16px;
+      padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); max-height: 34vh; max-height: 34svh; overflow: auto; z-index: 6; font-size: 16px;
       display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; animation: rise .15s ease-out; }
     #suggest[hidden] { display: none; }
     #suggest .title { width: 100%; padding: 0 2px 2px; font-size: 12px; }
