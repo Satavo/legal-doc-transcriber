@@ -522,7 +522,13 @@ function isEdgeWord(w, words, vocab) {
 // Слова, которые встречаются в самом документе, — лучшие кандидаты для достройки
 function docVocabulary(lines) {
   const vocab = new Map();
-  for (const l of lines) for (const w of l.text.match(/\p{L}{3,}/gu) || []) vocab.set(norm(w), (vocab.get(norm(w)) || 0) + 1);
+  for (const l of lines) {
+    const ws = l.text.match(/\p{L}{3,}/gu) || [];
+    // Слово у края фото может быть обрывком («догово» в каждой строке) — повторы обрывков словом не делают
+    if (l.edgeR && /\p{L}$/u.test(l.text)) ws.pop();
+    if (l.edgeL && /^\p{L}/u.test(l.text)) ws.shift();
+    for (const w of ws) vocab.set(norm(w), (vocab.get(norm(w)) || 0) + 1);
+  }
   return vocab;
 }
 

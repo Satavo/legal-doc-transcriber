@@ -19,6 +19,17 @@ loadEngine().catch(() => {});
 loadWords().catch(() => {});
 loadContext().catch(() => {});
 
+// Волна от точки нажатия на цветных кнопках
+document.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest?.(".act");
+  if (!b || b.disabled) return;
+  const r = b.getBoundingClientRect(), size = Math.max(r.width, r.height) * 2;
+  const wave = Object.assign(document.createElement("span"), { className: "ripple" });
+  Object.assign(wave.style, { width: size + "px", height: size + "px", left: e.clientX - r.left - size / 2 + "px", top: e.clientY - r.top - size / 2 + "px" });
+  b.append(wave);
+  wave.addEventListener("animationend", () => wave.remove());
+});
+
 // Телефон: камера и галерея. После снимка кнопка предлагает снять следующую страницу
 const isTouch = matchMedia("(hover: none) and (pointer: coarse)").matches;
 $("cameraBtn").addEventListener("click", () => $("camera").click());
@@ -46,18 +57,27 @@ function render() {
     const li = document.createElement("li");
     const thumb = Object.assign(document.createElement("img"), { src: it.url, alt: "", title: "Открыть фото" });
     thumb.addEventListener("click", () => openViewer(i));
-    const name = Object.assign(document.createElement("div"), { className: "name", textContent: `${i + 1}. ${it.file.name}` });
-    const status = Object.assign(document.createElement("div"), { className: "status " + (it.cls || ""), textContent: it.status });
-    li.append(thumb, name, status, btn("↑", i === 0, () => move(i, -1)), btn("↓", i === items.length - 1, () => move(i, 1)), btn("✕", false, () => remove(i)));
+    // Имя и статус друг под другом — на узком экране строка не «расползается»
+    const info = Object.assign(document.createElement("div"), { className: "info" });
+    info.append(
+      Object.assign(document.createElement("div"), { className: "name", textContent: `${i + 1}. ${it.file.name}`, title: it.file.name }),
+      Object.assign(document.createElement("div"), { className: "status " + (it.cls || ""), textContent: it.status }),
+    );
+    const btns = Object.assign(document.createElement("div"), { className: "btns" });
+    // Стрелки порядка нужны, только когда страниц больше одной
+    if (items.length > 1) btns.append(btn("↑", i === 0, () => move(i, -1), "Выше"), btn("↓", i === items.length - 1, () => move(i, 1), "Ниже"));
+    btns.append(btn("✕", false, () => remove(i), "Убрать фото"));
+    li.append(thumb, info, btns);
     list.append(li);
   });
   startBtn.disabled = busy || items.length === 0;
   clearBtn.disabled = busy || items.length === 0;
-  $("cameraBtn").textContent = items.length ? "📷 Сфотографировать ещё страницу" : "📷 Сфотографировать страницу";
+  $("cameraBtn").querySelector(".lbl").textContent = items.length ? "Сфотографировать ещё страницу" : "Сфотографировать страницу";
 }
 
-function btn(label, disabled, onClick) {
-  const b = Object.assign(document.createElement("button"), { className: "icon-btn", textContent: label, disabled: disabled || busy });
+function btn(label, disabled, onClick, title = "") {
+  const b = Object.assign(document.createElement("button"), { className: "icon-btn", textContent: label, disabled: disabled || busy, title });
+  if (title) b.setAttribute("aria-label", title);
   b.addEventListener("click", onClick);
   return b;
 }
@@ -102,6 +122,8 @@ startBtn.addEventListener("click", async () => {
   $("mbar").hidden = false;
   pages.forEach((p) => items.some((it) => it.url === p.url) || URL.revokeObjectURL(p.url));
   pages = items.map((it) => ({ url: it.url, name: it.file.name }));
+  shownPage = -1;
+  renderPageTabs();
   items.forEach((it) => { it.status = "в очереди"; it.cls = ""; });
   render();
   for (let i = 0; i < items.length; i++) {
@@ -125,6 +147,9 @@ startBtn.addEventListener("click", async () => {
     const n = issues().length;
     setMsg(n ? `Готово · слов на проверку: ${n}` : "Готово");
   }
+  // Готовый текст — с начала, фото первой страницы
+  syncPaused = Date.now() + 1200;
+  output.scrollTop = 0;
   showPage(0);
   $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -201,8 +226,57 @@ let shownPage = -1, zoom = 1, activeLine = null;
 
 $("showPhoto").addEventListener("change", (e) => review.classList.toggle("no-photo", !e.target.checked));
 
+// Вкладки страниц над фото (если страниц больше одной)
+function renderPageTabs() {
+  const tabs = $("pageTabs");
+  tabs.hidden = pages.length < 2;
+  tabs.replaceChildren(...pages.map((p, i) => {
+    const b = Object.assign(document.createElement("button"), { type: "button", className: "page-tab", title: p.name });
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", "false");
+    b.append(Object.assign(document.createElement("img"), { src: p.url, alt: "" }), `Стр. ${i + 1}`);
+    b.addEventListener("click", () => openPage(i));
+    return b;
+  }));
+}
+
+// Выбор страницы вкладкой: фото этой страницы и текст прокручивается к её началу
+function openPage(i) {
+  clearHighlight();
+  showPage(i);
+  const head = output.querySelector(`.ln.page-head[data-page="${i}"]`) || output.querySelector(`.ln[data-page="${i}"]`);
+  if (!head) return;
+  syncPaused = Date.now() + 900;   // пока текст едет к странице, не переключаем фото обратно
+  if (output.scrollHeight > output.clientHeight + 2) output.scrollTo({ top: head.offsetTop - output.offsetTop, behavior: "smooth" });
+  else window.scrollTo({ top: window.scrollY + head.getBoundingClientRect().top - $("photoPane").getBoundingClientRect().height - 16, behavior: "smooth" });
+}
+
+// Листаете текст — фото само переключается на страницу, которую вы читаете
+let syncFrame = 0, syncPaused = 0;
+function syncPageFromScroll() {
+  if (syncFrame || pages.length < 2) return;
+  syncFrame = requestAnimationFrame(() => {
+    syncFrame = 0;
+    if (Date.now() < syncPaused || review.classList.contains("no-photo")) return;
+    const o = output.getBoundingClientRect(), pane = $("photoPane").getBoundingClientRect();
+    // Точка чтения: верх видимой части текста. На телефоне фото стоит над текстом и закрывает его верх —
+    // тогда читаем сразу под фото; на компьютере фото слева и ничего не закрывает
+    const stacked = Math.abs(pane.left - o.left) < 2;
+    const y = Math.max(o.top, 0, stacked ? pane.bottom : 0) + 24;
+    // Первая строка, которая видна ниже точки чтения
+    const ln = [...output.querySelectorAll(".ln")].find((l) => l.getBoundingClientRect().bottom > y);
+    if (ln && +ln.dataset.page !== shownPage) { clearHighlight(); showPage(+ln.dataset.page); }
+  });
+}
+output.addEventListener("scroll", syncPageFromScroll, { passive: true });
+window.addEventListener("scroll", syncPageFromScroll, { passive: true });
+
 function showPage(i) {
   if (!pages[i]) return Promise.resolve(false);
+  $("pageTabs").querySelectorAll(".page-tab").forEach((t, k) => {
+    t.setAttribute("aria-selected", String(k === i));
+    if (k === i && !$("pageTabs").hidden) t.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
   // Сравниваем само фото, а не номер страницы: после новой расшифровки «страница 1» — уже другое фото
   if (shownPage === i && photoImg.dataset.url === pages[i].url && photoImg.complete && photoImg.naturalWidth) return Promise.resolve(true);
   shownPage = i;
@@ -329,7 +403,15 @@ function updateIssues() {
   $("issueInfo").textContent = all.length ? (pos ? `${pos} из ${all.length}` : `на проверку: ${all.length}`) : output.textContent.trim() ? "Все слова проверены" : "";
   $("mPrev").disabled = !all.length;
   $("mNext").disabled = !all.length;
-  $("mNext").textContent = all.length ? (pos ? `${pos} из ${all.length} →` : `Проверить: ${all.length} →`) : "Проверено ✓";
+  const label = all.length ? (pos ? `${pos} из ${all.length}` : `Слова: ${all.length}`) : "Готово ✓";
+  const lbl = $("mNext").querySelector(".lbl");
+  if (lbl.textContent !== label) {
+    lbl.textContent = label;
+    // Счётчик «подпрыгивает» при каждом изменении; пока проверка не начата — кнопка мягко пульсирует
+    $("mNext").classList.remove("bump"); void $("mNext").offsetWidth; $("mNext").classList.add("bump");
+  }
+  $("mNext").classList.toggle("pulse", all.length > 0 && !pos);
+  $("mNext").classList.toggle("done", !all.length);
 }
 
 function goIssue(dir) {

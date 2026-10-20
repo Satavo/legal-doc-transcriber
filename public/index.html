@@ -34,10 +34,13 @@
   #drop strong { display: block; font-size: 18px; margin-bottom: 4px; }
   #drop span { color: var(--muted); font-size: 14px; }
   #files { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
-  #files li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
+  #files li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; min-width: 0; animation: rise .25s ease-out; }
   #files img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; background: var(--bg); }
-  #files .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #files .status { font-size: 13px; color: var(--muted); flex: none; }
+  #files .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  #files .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #files .status { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #files .btns { display: flex; gap: 6px; flex: none; }
+  #files .status:empty { display: none; }
   #files .status.done { color: var(--ok); } #files .status.err { color: var(--danger); }
   .icon-btn { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; flex: none; }
   .icon-btn:disabled { opacity: .35; cursor: default; }
@@ -63,6 +66,13 @@
   .photo-tools { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 13px; }
   .photo-tools #photoTitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
   .photo-tools .tool { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; min-width: 30px; height: 28px; font: inherit; cursor: pointer; padding: 0 8px; }
+  /* Вкладки страниц над фото: миниатюра и номер */
+  .page-tabs { display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; border-bottom: 1px solid var(--border); scrollbar-width: thin; flex: none; }
+  .page-tabs[hidden] { display: none; }
+  .page-tab { display: flex; align-items: center; gap: 6px; flex: none; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: 600 13px/1 system-ui, sans-serif; cursor: pointer; transition: background-color .2s, border-color .2s, transform .12s; }
+  .page-tab img { width: 26px; height: 26px; object-fit: cover; border-radius: 50%; }
+  .page-tab:active { transform: scale(.95); }
+  .page-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
   .photo-scroll { flex: 1; min-height: 0; overflow: auto; position: relative; }
   .photo-wrap { position: relative; width: 100%; }
   .photo-wrap img { display: block; width: 100%; height: auto; }
@@ -113,12 +123,42 @@
   }
   .pick-row { gap: 10px; }
   button.big { padding: 16px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
+  /* Цветные кнопки действий с иконками */
+  .c-blue { --c: #3b6cf6; } .c-violet { --c: #8b5cf6; } .c-red { --c: #e5484d; } .c-sky { --c: #0ea5e9; }
+  .c-word { --c: #2b62c9; } .c-slate { --c: #64748b; } .c-green { --c: #16a34a; } .c-amber { --c: #f59e0b; }
+  .act { --c: var(--accent); position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer;
+    color: color-mix(in srgb, var(--c) 82%, var(--text)); background: color-mix(in srgb, var(--c) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c) 38%, transparent);
+    transition: transform .14s ease, box-shadow .2s ease, background-color .2s ease, filter .2s ease; -webkit-tap-highlight-color: transparent; }
+  .act.solid { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 72%, #000)); box-shadow: 0 2px 8px color-mix(in srgb, var(--c) 30%, transparent); }
+  .act .ic { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease; }
+  .act:hover:not(:disabled) { transform: translateY(-1px); background-color: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: 0 6px 16px color-mix(in srgb, var(--c) 26%, transparent); }
+  .act.solid:hover:not(:disabled) { filter: brightness(1.08); }
+  .act:hover:not(:disabled) .ic { transform: scale(1.12); }
+  .act:active:not(:disabled) { transform: scale(.95); box-shadow: none; }
+  .act:disabled { opacity: .45; cursor: default; }
+  .act:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+  /* Волна от точки нажатия */
+  .ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .28; transform: scale(0); animation: ripple .55s ease-out forwards; }
+  .act.solid .ripple { background: #fff; }
+  @keyframes ripple { to { transform: scale(1); opacity: 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes slideUp { from { transform: translateY(110%); } to { transform: none; } }
+  @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.07); } 100% { transform: scale(1); } }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 45%, transparent); } 50% { box-shadow: 0 0 0 7px transparent; } }
+  .mbar button.bump { animation: bump .32s ease-out; }
+  .mbar button.pulse { animation: pulse 2.2s ease-in-out infinite; }
+  .mbar button.done { --c: #16a34a; }
+  @media (prefers-reduced-motion: reduce) {
+    .act, .act .ic, #files li, .mbar, .mbar button { transition: none !important; animation: none !important; }
+    .ripple { display: none; }
+  }
   .mbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgba(0,0,0,.12); }
-  .mbar button { min-height: 46px; min-width: 46px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font: 600 16px/1 system-ui, sans-serif; padding: 0 14px; }
-  .mbar button.grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mbar button { flex: none; white-space: nowrap; }
-  .mbar button.primary { background: var(--accent); color: var(--accent-text); border: none; }
-  .mbar button:disabled { opacity: .4; }
+  .mbar { animation: slideUp .3s ease-out; }
+  .mbar button { min-height: 48px; min-width: 48px; border-radius: 14px; font: 600 16px/1 system-ui, sans-serif; padding: 0 14px; flex: none; white-space: nowrap; }
+  .mbar button.grow { flex: 1; min-width: 0; }
+  .mbar button.grow .lbl { overflow: hidden; text-overflow: ellipsis; }
   @media (max-width: 899px) {
     main { padding: 16px 12px 96px; }
     h1 { font-size: 22px; }
@@ -156,8 +196,8 @@
   <section class="card">
     <!-- На телефоне: камера и галерея крупными кнопками -->
     <div class="pick-row touch-only">
-      <button class="primary big" id="cameraBtn" type="button">📷 Сфотографировать страницу</button>
-      <button class="secondary big" id="galleryBtn" type="button">🖼 Выбрать из галереи</button>
+      <button class="act solid big c-blue" id="cameraBtn" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="lbl">Сфотографировать страницу</span></button>
+      <button class="act big c-violet" id="galleryBtn" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span class="lbl">Выбрать из галереи</span></button>
     </div>
     <div id="drop" class="mouse-only" tabindex="0" role="button">
       <strong>Перетащите фото сюда или нажмите, чтобы выбрать</strong>
@@ -167,8 +207,8 @@
     <input id="camera" type="file" accept="image/*" capture="environment" hidden>
     <ul id="files"></ul>
     <div class="row">
-      <button class="primary" id="start" disabled>Расшифровать</button>
-      <button class="secondary" id="clear" disabled>Очистить</button>
+      <button class="act solid c-blue" id="start" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg>Расшифровать</button>
+      <button class="act c-red" id="clear" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Очистить</button>
       <span id="msg"></span>
     </div>
     <p class="hint">Страницы обрабатываются по порядку сверху вниз — порядок можно поменять стрелками.</p>
@@ -184,6 +224,7 @@
     </div>
     <div class="review" id="review">
       <div class="photo-pane" id="photoPane">
+        <div class="page-tabs" id="pageTabs" role="tablist" aria-label="Страницы" hidden></div>
         <div class="photo-tools">
           <span id="photoTitle">Фото страницы</span>
           <button class="tool" id="zoomOut" title="Уменьшить">−</button>
@@ -202,10 +243,10 @@
       <div id="output" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" data-placeholder="Здесь появится расшифровка… Текст можно править прямо здесь."></div>
     </div>
     <div class="row">
-      <button class="secondary" id="copy">Копировать</button>
-      <button class="secondary" id="downloadDocx">Скачать .docx</button>
-      <button class="secondary" id="download">Скачать .txt</button>
-      <button class="secondary" id="emailBtn">Отправить на email</button>
+      <button class="act c-sky" id="copy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать</button>
+      <button class="act c-word" id="downloadDocx"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
+      <button class="act c-slate" id="download"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
+      <button class="act solid c-green" id="emailBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Отправить на email</button>
     </div>
     <p class="hint touch-only"><span class="w-unk">Жёлтым</span> — не уверен, <span class="w-fix">пунктиром</span> — исправлено, <span class="w-guess">оранжевым</span> — обрезано краем. Нажмите на слово, чтобы выбрать вариант; «Далее» внизу ведёт по всем таким словам. Чтобы исправить текст вручную — «✎ Править текст».</p>
     <p class="hint mouse-only"><span class="w-unk">Жёлтым</span> — слова, в которых программа не уверена, <span class="w-fix">пунктиром</span> — исправленные по словарю, <span class="w-guess">оранжевым</span> — обрезанные краем или изгибом страницы: буквы в скобках угаданы («Арендода[тель?]»), «[…]» — достроить не удалось. Наведите или нажмите на слово, чтобы выбрать вариант. Строка и слово под курсором подсвечиваются на фото слева. Кнопка «Следующее слово на проверку» (или Alt+↓) по очереди показывает все сомнительные места. Текст можно править прямо в поле.</p>
@@ -214,9 +255,9 @@
 
 <!-- Нижняя панель на телефоне: проверка слов и отправка всегда под рукой -->
 <nav class="mbar touch-only" id="mbar" hidden aria-label="Действия">
-  <button type="button" id="mPrev" aria-label="Предыдущее слово на проверку">←</button>
-  <button type="button" id="mNext" class="grow">Далее →</button>
-  <button type="button" id="mSend" class="primary">✉ Отправить</button>
+  <button type="button" id="mPrev" class="act c-slate" aria-label="Предыдущее слово на проверку"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+  <button type="button" id="mNext" class="act c-amber grow"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/></svg><span class="lbl">Далее</span></button>
+  <button type="button" id="mSend" class="act solid c-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/></svg>Отправить</button>
 </nav>
 
 <div id="suggest" hidden role="menu"></div>
