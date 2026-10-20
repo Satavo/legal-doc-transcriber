@@ -655,7 +655,9 @@ let suggestFor = null, hideTimer = null, suggestPinned = false;
 function showSuggest(span, pinned = false, at = null) {
   clearTimeout(hideTimer);
   suggestPinned = pinned;
-  if (suggestFor === span && !suggest.hidden) return;
+  // Повторное нажатие (на то же слово или другое) закрывает старое окно и открывает новое у места нажатия;
+  // без точки нажатия (обход по словам) уже открытое окно не трогаем
+  if (suggestFor === span && !suggest.hidden && !at) return;
   suggestFor = span;
   suggest.innerHTML = "";
   const isFix = span.classList.contains("w-fix"), isGuess = span.classList.contains("w-guess"), isName = span.classList.contains("w-name");
@@ -682,6 +684,7 @@ function showSuggest(span, pinned = false, at = null) {
   const left = Math.min(window.scrollX + x, window.scrollX + document.documentElement.clientWidth - suggest.offsetWidth - 8);
   suggest.style.left = Math.max(8, left) + "px";
   suggest.style.top = window.scrollY + r.bottom + 6 + "px";
+  suggest.classList.remove("pop"); void suggest.offsetWidth; suggest.classList.add("pop");
 }
 function hideSuggest() { suggest.hidden = true; suggestFor = null; suggestPinned = false; }
 

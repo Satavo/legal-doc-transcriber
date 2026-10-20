@@ -147,6 +147,7 @@
   .w-guess { background: var(--guess-bg); border-bottom: 2px dashed var(--guess-line); border-radius: 3px; cursor: pointer; }
   #suggest { position: absolute; z-index: 5; min-width: 200px; max-width: 300px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 8px; font-size: 14px; }
   #suggest[hidden] { display: none; }
+  #suggest.pop { animation: rise .16s ease-out; }
   #suggest .title { color: var(--muted); font-size: 12px; padding: 2px 6px 6px; }
   #suggest button { display: block; width: 100%; text-align: left; border: none; background: transparent; color: var(--text); font: inherit; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
   #suggest button:hover, #suggest button:focus-visible { background: var(--bg); outline: none; }
