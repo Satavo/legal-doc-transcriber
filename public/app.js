@@ -717,9 +717,13 @@ output.addEventListener("paste", (e) => {
 });
 output.addEventListener("input", updateIssues);
 
+// Копирование: на кнопке-иконке на секунду появляется галочка (на телефоне — сообщение)
+const COPY_ICON = $("copy").innerHTML, CHECK_ICON = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L19 7"/></svg>';
 $("copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText(serialize());
-  setMsg("Скопировано");
+  try { await navigator.clipboard.writeText(serialize()); } catch { return setMsg("Не удалось скопировать — выделите текст и скопируйте вручную", true); }
+  if (isTouch) return setMsg("Скопировано");
+  $("copy").innerHTML = CHECK_ICON; $("copy").classList.add("copied"); $("copy").title = "Скопировано";
+  setTimeout(() => { $("copy").innerHTML = COPY_ICON; $("copy").classList.remove("copied"); $("copy").title = "Копировать текст"; }, 1500);
 });
 function saveFile(blob, name) {
   const a = document.createElement("a");
@@ -751,7 +755,7 @@ function toggleDocxMenu(open = docxMenu.hidden) {
   hideSuggest(); togglePcMore(false);
   placeMenu(docxMenu, $("downloadDocx"));
 }
-// «⋯» под текстом на компьютере: копировать и скачать .txt
+// «⋯» под текстом на компьютере: скачать .txt
 const pcMoreMenu = $("pcMoreMenu");
 function togglePcMore(open = pcMoreMenu.hidden) {
   pcMoreMenu.hidden = !open;

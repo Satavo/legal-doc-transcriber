@@ -65,6 +65,8 @@
   .docx-menu .ttl { font-size: 13px; color: var(--muted); padding: 2px 4px 4px; }
   .actions-row #pcMore { margin-left: auto; align-self: stretch; padding: 0 16px; }   /* «⋯», .docx и отправка — вместе справа */
   .act[hidden] { display: none; }
+  .actions-row .icon-only { align-self: stretch; padding: 0 14px; }
+  .act.copied { --c: #16a34a; }
   .icon-btn { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; flex: none; }
   .icon-btn.del { color: #fff; border-color: transparent; background: linear-gradient(135deg, #e5484d, #b8363a); display: inline-flex; align-items: center; justify-content: center; transition: filter .2s, transform .14s; }
   .icon-btn.del svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -332,10 +334,10 @@
       <div id="output" contenteditable="false" spellcheck="false" role="textbox" aria-multiline="true" data-placeholder="Здесь появится расшифровка…"></div>
     </div>
     <div class="row actions-row mouse-only">
-      <!-- Кнопки «Копировать» и «Скачать .txt» спрятаны: на компьютере они в меню «⋯», на телефоне — в «⋯» нижней панели -->
-      <button class="act c-sky" id="copy" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать</button>
+      <!-- «Скачать .txt» спрятана: на компьютере она в меню «⋯», на телефоне — в «⋯» нижней панели -->
       <button class="act c-slate" id="download" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
-      <button class="act c-slate" id="pcMore" type="button" aria-label="Ещё: копировать, скачать .txt" title="Ещё" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+      <button class="act c-slate" id="pcMore" type="button" aria-label="Ещё: скачать .txt" title="Ещё" aria-haspopup="menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+      <button class="act c-sky icon-only" id="copy" type="button" title="Копировать текст" aria-label="Копировать текст"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button>
       <button class="act c-word" id="downloadDocx"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Скачать .docx</button>
       <button class="act solid c-green" id="emailBtn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Отправить на email</button>
     </div>
@@ -366,9 +368,8 @@
   <button type="button" class="act c-slate" data-act="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
 </div>
 
-<!-- Меню «⋯» под текстом на компьютере -->
+<!-- Меню «⋯» под текстом на компьютере: скачать .txt -->
 <div class="docx-menu" id="pcMoreMenu" role="menu" hidden>
-  <button type="button" class="act c-sky" data-pc="copy" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Копировать текст</button>
   <button type="button" class="act c-slate" data-pc="download" role="menuitem"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>Скачать .txt</button>
 </div>
 
