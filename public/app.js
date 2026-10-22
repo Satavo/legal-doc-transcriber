@@ -404,10 +404,12 @@ function syncPageFromScroll() {
     // Видимая часть текста. На телефоне фото стоит над текстом и закрывает его верх —
     // тогда считаем от низа фото; на компьютере фото слева и ничего не закрывает
     const stacked = Math.abs(pane.left - o.left) < 2;
-    const top = Math.max(o.top, 0, stacked ? pane.bottom : 0), bottom = Math.min(o.bottom, innerHeight);
+    // Снизу текст закрывает нижняя панель телефона
+    const mbar = $("mbar"), barTop = getComputedStyle(mbar).display !== "none" ? mbar.getBoundingClientRect().top : innerHeight;
+    const top = Math.max(o.top, 0, stacked ? pane.bottom : 0), bottom = Math.min(o.bottom, innerHeight, barTop);
     if (bottom <= top) return;
-    // Фото той страницы, которая занимает большую часть видимого текста: край соседней страницы,
-    // выглянувший сверху или снизу, фото не переключает
+    // Фото текущей страницы держится, пока она занимает хотя бы четверть видимого текста (дочитываете её конец
+    // или начало), и только потом переключается на ту, что занимает больше всего — в обе стороны прокрутки
     const share = new Map();
     for (const l of output.querySelectorAll(".ln")) {
       const r = l.getBoundingClientRect();
@@ -416,6 +418,7 @@ function syncPageFromScroll() {
       const p = +l.dataset.page;
       share.set(p, (share.get(p) || 0) + Math.min(r.bottom, bottom) - Math.max(r.top, top));
     }
+    if ((share.get(shownPage) || 0) >= (bottom - top) * 0.25) return;
     let best = shownPage, bestH = share.get(shownPage) || 0;
     for (const [p, h] of share) if (h > bestH + 1) { best = p; bestH = h; }
     if (best >= 0 && best !== shownPage) { clearHighlight(); showPage(best); }
